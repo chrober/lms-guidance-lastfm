@@ -64,6 +64,8 @@ sub guidance_provider_descriptor_v1 {
                 key => 'lastfm_artist_level', type => 'integer', minimum => 0,
                 maximum => 100, factory_default => 75, host_overridable => 1,
                 guidance_channel => 'lastfm_artist', render_as => 'slider',
+                guidance_policy => 'target_share_or_bounded',
+                guidance_mode_key => 'lastfm_artist_mode',
                 label_token => 'GUIDANCE_LASTFM_ARTIST_LEVEL',
                 help_token => 'GUIDANCE_LASTFM_ARTIST_LEVEL_DESC',
             },
