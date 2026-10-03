@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use File::Temp qw(tempfile);
-use JSON::PP qw(decode_json);
+use JSON::PP qw(decode_json encode_json);
 use Test::More;
 use lib '.';
 
@@ -108,5 +108,41 @@ is_deeply(
 );
 my $status = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
 is($status->{reason}, 'native_binary_missing', 'missing native binary is reported before a host can start the provider');
+
+{
+    no warnings 'redefine';
+    local *Plugins::LastFmGuidance::Provider::guidance_provider_status_v1 = sub {
+        return { available => 1, program => '/trusted/bin/bliss-guidance-lastfm' };
+    };
+    $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
+    $Slim::Utils::Prefs::PREFS->set(api_key => 'test-direct-api-key');
+    my $config = Plugins::LastFmGuidance::Provider::guidance_provider_native_spi_config_v1(
+        {
+            source => 'api_key',
+            lastfm_track_influence => 25,
+            lastfm_artist_mode => 'bounded_influence',
+            lastfm_artist_level => 75,
+        },
+        {
+            cache_path => '/trusted/cache/lastfm-guidance.json',
+            cache_ttl_seconds => 3600,
+            request_deadline_ms => 5000,
+            max_concurrent_requests => 2,
+        },
+    );
+    is_deeply($config->{artifacts}, [], 'direct API mode does not require a LastMix artifact');
+    is_deeply($config->{options}, {
+        acquisition_mode => 'direct',
+        cache_path => '/trusted/cache/lastfm-guidance.json',
+        cache_ttl_seconds => 3600,
+        request_deadline_ms => 5000,
+        max_concurrent_requests => 2,
+        lastfm_track_influence => 25,
+        lastfm_artist_mode => 'bounded_influence',
+        lastfm_artist_level => 75,
+    }, 'direct API mode passes only trusted non-secret native configuration');
+    unlike(encode_json($config), qr/test-direct-api-key/,
+        'direct native configuration never serializes the API key');
+}
 
 done_testing;
