@@ -3,8 +3,11 @@ package Plugins::LastFmGuidance::Provider;
 use strict;
 use warnings;
 use Config qw(%Config);
+use Digest::SHA qw(sha256_hex);
 use File::Basename qw(dirname);
 use File::Spec::Functions qw(catfile);
+use JSON::PP qw(encode_json);
+use POSIX qw(strftime);
 use Slim::Utils::Prefs;
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
@@ -73,7 +76,7 @@ sub guidance_provider_descriptor_v1 {
                 similar_track => 'lastfm_track',
                 similar_artist => 'lastfm_artist',
             },
-            artifact_kinds => ['lastfm-relations-v1'],
+            artifact_kinds => ['resolved-lastfm-evidence-v1'],
             resource_kinds => [],
         },
     };
@@ -140,11 +143,11 @@ sub guidance_provider_native_spi_config_v1 {
     my @artifacts;
     if ($effective->{source} eq 'lastmix') {
         my $artifact = $trusted_context->{lastfm_relations_artifact};
-        die 'Last.fm LastMix mode requires a trusted relations artifact'
+        die 'Last.fm LastMix mode requires a trusted resolved evidence artifact'
             unless ref($artifact) eq 'HASH' && $artifact->{path} && $artifact->{sha256}
-                && ($artifact->{kind} || '') eq 'lastfm-relations-v1';
+                && ($artifact->{kind} || '') eq 'resolved-lastfm-evidence-v1';
         push @artifacts, {
-            kind => 'lastfm-relations-v1', path => $artifact->{path}, sha256 => $artifact->{sha256},
+            kind => 'resolved-lastfm-evidence-v1', path => $artifact->{path}, sha256 => $artifact->{sha256},
         };
     }
 
@@ -168,11 +171,151 @@ sub guidance_provider_acquire_artifacts_v1 {
     my $effective = _effective_policy($resolved_policy || {}, guidance_provider_defaults_v1());
     return $on_complete->({ available => 1, artifacts => [], diagnostic => '' })
         if $effective->{source} eq 'api_key';
-    return $on_complete->({
-        available => 0,
-        artifacts => [],
-        diagnostic => 'LastMix relation acquisition is not connected to this host yet',
-    });
+    return $on_complete->({ available => 0, artifacts => [], diagnostic => 'LastMix is not installed' })
+        unless _lastmix_available();
+
+    $trusted_context ||= {};
+    my $path = $trusted_context->{artifact_path} || '';
+    my $sources = $trusted_context->{source_tracks};
+    return $on_complete->({ available => 0, artifacts => [], diagnostic => 'trusted LastMix artifact path is missing' })
+        unless length $path;
+    return $on_complete->({ available => 0, artifacts => [], diagnostic => 'trusted LastMix source tracks are missing' })
+        unless ref($sources) eq 'ARRAY';
+    return $on_complete->({ available => 0, artifacts => [], diagnostic => 'LastMix API is unavailable' })
+        unless eval { require Plugins::LastMix::LFM; 1 };
+
+    my (@requests, %seen_track, %seen_artist);
+    for my $track (@$sources) {
+        next unless ref($track) eq 'HASH';
+        my $artist = $track->{artist} || '';
+        my $title = $track->{title} || '';
+        my $track_key = _normalize($artist) . '|' . _normalize($title);
+        if (length $artist && length $title && !$seen_track{$track_key}++) {
+            push @requests, { kind => 'track', %$track };
+        }
+        my $artist_key = _normalize($artist);
+        if (length $artist_key && !$seen_artist{$artist_key}++) {
+            push @requests, {
+                kind => 'artist', artist => $artist,
+                artist_mbid => ref($track->{artist_mbids}) eq 'ARRAY' ? $track->{artist_mbids}[0] : undef,
+            };
+        }
+    }
+
+    my @edges;
+    my @errors;
+    my $requests = 0;
+    my $failures = 0;
+    my $next;
+    $next = sub {
+        unless (@requests) {
+            my $state = $failures ? (@edges ? 'partial' : 'failed') : 'fresh';
+            my $bundle = {
+                schema_version => 1,
+                frozen_at => strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(time())),
+                providers => [{
+                    provider => 'last.fm',
+                    dataset_or_algorithm => 'LastMix track.getSimilar + artist.getSimilar',
+                    state => $state,
+                    request_count => 0 + $requests,
+                    failure_count => 0 + $failures,
+                    error_codes => \@errors,
+                }],
+                edges => \@edges,
+            };
+            my $fh;
+            unless (open $fh, '>', $path) {
+                return $on_complete->({ available => 0, artifacts => [], diagnostic => 'cannot write trusted LastMix artifact' });
+            }
+            print {$fh} encode_json($bundle);
+            close $fh;
+            open my $read_fh, '<', $path or return $on_complete->({ available => 0, artifacts => [], diagnostic => 'cannot verify trusted LastMix artifact' });
+            binmode $read_fh;
+            local $/;
+            my $sha256 = sha256_hex(<$read_fh>);
+            close $read_fh;
+            return $on_complete->({
+                available => 1,
+                artifacts => [{ kind => 'semantic-evidence-v1', path => $path, sha256 => $sha256 }],
+                diagnostic => '',
+                statistics => { requests => 0 + $requests, failures => 0 + $failures, edges => scalar @edges },
+            });
+        }
+
+        my $source = shift @requests;
+        $requests++;
+        if ($source->{kind} eq 'track') {
+            return Plugins::LastMix::LFM->getSimilarTracks(sub {
+                my $result = shift;
+                if (!ref($result) || ref($result) ne 'HASH' || $result->{error}) {
+                    $failures++; push @errors, 'LASTFM_TRACK_FAILED'; return $next->();
+                }
+                my $rank = 0;
+                my $similar = $result->{similartracks}{track};
+                $similar = [] unless ref($similar) eq 'ARRAY';
+                for my $track (@$similar) {
+                    next unless ref($track) eq 'HASH' && $track->{name} && ref($track->{artist}) eq 'HASH' && $track->{artist}{name};
+                    last if ++$rank > 25;
+                    push @edges, _edge(
+                        'LastMix track.getSimilar', _recording_entity($source->{id}, $source->{artist}, $source->{title}, $source->{recording_mbid}),
+                        _recording_entity(undef, $track->{artist}{name}, $track->{name}, $track->{mbid}), 'endpoint_local', $rank, $track->{match},
+                    );
+                }
+                $next->();
+            }, {
+                artist => $source->{artist}, title => $source->{title}, mbid => $source->{recording_mbid},
+            });
+        }
+        return Plugins::LastMix::LFM->getSimilarArtists(sub {
+            my $result = shift;
+            if (!ref($result) || ref($result) ne 'HASH' || $result->{error}) {
+                $failures++; push @errors, 'LASTFM_ARTIST_FAILED'; return $next->();
+            }
+            my $rank = 0;
+            my $similar = $result->{similarartists}{artist};
+            $similar = [] unless ref($similar) eq 'ARRAY';
+            for my $artist (@$similar) {
+                next unless ref($artist) eq 'HASH' && $artist->{name};
+                last if ++$rank > 25;
+                my $source_entity = _artist_entity($source->{artist}, $source->{artist_mbid});
+                my $candidate = _artist_entity($artist->{name}, $artist->{mbid});
+                push @edges, _edge('LastMix artist.getSimilar', $source_entity, $candidate, 'endpoint_local', $rank, $artist->{match});
+                push @edges, _edge('LastMix artist.getSimilar', $source_entity, $candidate, 'collection_fallback', $rank, $artist->{match});
+            }
+            $next->();
+        }, { artist => $source->{artist}, mbid => $source->{artist_mbid} });
+    };
+    $next->();
+}
+
+sub _normalize {
+    my $value = lc(shift || '');
+    $value =~ s/^\s+|\s+$//g;
+    $value =~ s/\s+/ /g;
+    return $value;
+}
+
+sub _recording_entity {
+    my ($id, $artist, $title, $mbid) = @_;
+    return { kind => 'recording', id => $id || 'recording:' . _normalize($artist) . '|' . _normalize($title), name => $artist, title => $title, (defined $mbid && length $mbid ? (mbid => $mbid) : ()) };
+}
+
+sub _artist_entity {
+    my ($name, $mbid) = @_;
+    return { kind => 'artist', id => 'artist:' . _normalize($name), name => $name, (defined $mbid && length $mbid ? (mbid => $mbid) : ()) };
+}
+
+sub _edge {
+    my ($algorithm, $source, $candidate, $scope, $rank, $score) = @_;
+    return {
+        provider => 'last.fm', dataset_or_algorithm => $algorithm,
+        source => $source, candidate => $candidate, scope => $scope,
+        raw_rank => 0 + $rank,
+        (defined $score && $score =~ /^\d+(?:\.\d+)?$/ ? (raw_score => 0 + $score) : ()),
+        identity_confidence => 1.0,
+        observed_at => strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(time())),
+        cache_state => 'fresh',
+    };
 }
 
 sub _effective_policy {

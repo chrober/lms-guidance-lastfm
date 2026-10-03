@@ -1,5 +1,7 @@
 use strict;
 use warnings;
+use File::Temp qw(tempfile);
+use JSON::PP qw(decode_json);
 use Test::More;
 use lib '.';
 
@@ -59,8 +61,46 @@ ok(!exists $defaults->{api_key}, 'shared defaults do not expose the stored API k
 ok(!Plugins::LastFmGuidance::Provider::_lastmix_available(), 'missing LastMix is detected rather than silently switching source');
 @Slim::Utils::PluginManager::ENABLED = ('Plugins::LastMix::Plugin');
 ok(Plugins::LastFmGuidance::Provider::_lastmix_available(), 'enabled LastMix is detected as the selected source backend');
-
 $Slim::Utils::Prefs::PREFS->set(source => 'lastmix');
+
+{
+    package Plugins::LastMix::LFM;
+    sub getSimilarTracks {
+        my ($class, $callback, $args) = @_;
+        $callback->({ similartracks => { track => [{
+            name => 'Related Song', mbid => 'recording-mbid-2', match => 0.9,
+            artist => { name => 'Related Artist', mbid => 'artist-mbid-2' },
+        }] } });
+    }
+    sub getSimilarArtists {
+        my ($class, $callback, $args) = @_;
+        $callback->({ similarartists => { artist => [{
+            name => 'Related Artist', mbid => 'artist-mbid-2', match => 0.8,
+        }] } });
+    }
+    $INC{'Plugins/LastMix/LFM.pm'} = __FILE__;
+}
+
+my ($artifact_fh, $artifact_path) = tempfile();
+close $artifact_fh;
+my $acquisition;
+Plugins::LastFmGuidance::Provider::guidance_provider_acquire_artifacts_v1(
+    { source => 'lastmix' },
+    {
+        source_tracks => [{
+            id => 'lms-track-1', artist => 'Seed Artist', title => 'Seed Song',
+            recording_mbid => 'recording-mbid-1', artist_mbids => ['artist-mbid-1'],
+        }],
+        artifact_path => $artifact_path,
+    },
+    sub { $acquisition = shift; },
+);
+ok($acquisition->{available}, 'LastMix acquisition completes as an available provider result');
+is($acquisition->{artifacts}[0]{kind}, 'semantic-evidence-v1', 'LastMix acquisition returns a raw semantic evidence artifact for host resolution');
+my $artifact_text = do { open my $fh, '<', $artifact_path or die $!; local $/; <$fh> };
+my $artifact = decode_json($artifact_text);
+is(scalar @{$artifact->{edges}}, 3, 'LastMix acquisition writes recording and artist relation observations');
+
 is_deeply(
     Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {}),
     {},
