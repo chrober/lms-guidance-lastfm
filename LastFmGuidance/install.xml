@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<extension>
+  <id>fcd7e89c-5d5c-4c4b-8b95-9bda70f31ef8</id>
+  <name>PLUGIN_LASTFMGUIDANCE_NAME</name>
+  <module>Plugins::LastFmGuidance::Plugin</module>
+  <version>0.1.0</version>
+  <description>PLUGIN_LASTFMGUIDANCE_DESC</description>
+  <creator>Christoph O'Bermair</creator>
+  <defaultState><mac>enabled</mac><win>enabled</win><other>enabled</other></defaultState>
+  <homepageURL>https://github.com/chrober/lms-guidance-lastfm</homepageURL>
+  <type>2</type>
+  <targetApplication><id>Logitech Media Server</id><minVersion>8.5</minVersion><maxVersion>*</maxVersion></targetApplication>
+</extension>

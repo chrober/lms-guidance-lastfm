@@ -1,0 +1,62 @@
+[% PROCESS settings/header.html %]
+
+[% WRAPPER settingSection %]
+    <p>[% "PLUGIN_LASTFMGUIDANCE_NOTE" | string %]</p>
+
+    <h3>[% "PLUGIN_LASTFMGUIDANCE_STATUS" | string %]</h3>
+    [% IF provider_status.available %]
+        <p style="color:#398439">[% "PLUGIN_LASTFMGUIDANCE_STATUS_AVAILABLE" | string %]</p>
+    [% ELSE %]
+        <p style="color:#c9302c">[% "PLUGIN_LASTFMGUIDANCE_STATUS_UNAVAILABLE" | string(provider_status.reason) %]</p>
+    [% END %]
+
+    <h3>[% "PLUGIN_LASTFMGUIDANCE_DEFAULTS" | string %]</h3>
+    <p>[% "PLUGIN_LASTFMGUIDANCE_DEFAULTS_NOTE" | string %]</p>
+
+    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_SOURCE" desc="GUIDANCE_LASTFM_SOURCE_DESC" %]
+        <select class="stdedit" name="pref_source" id="lastfm-guidance-source">
+            [% IF lastmix_available %]
+                <option value="lastmix" [% IF prefs.source == 'lastmix' %]selected[% END %]>[% "GUIDANCE_LASTFM_SOURCE_LASTMIX" | string %]</option>
+            [% ELSE %]
+                <option value="lastmix" disabled [% IF prefs.source == 'lastmix' %]selected[% END %]>[% "GUIDANCE_LASTFM_SOURCE_LASTMIX_UNAVAILABLE" | string %]</option>
+            [% END %]
+            <option value="api_key" [% IF prefs.source == 'api_key' %]selected[% END %]>[% "GUIDANCE_LASTFM_SOURCE_API_KEY" | string %]</option>
+        </select>
+    [% END %]
+
+    <div id="lastfm-guidance-api-key-group">
+        [% WRAPPER settingGroup title="GUIDANCE_LASTFM_API_KEY" desc="GUIDANCE_LASTFM_API_KEY_DESC" %]
+            <input type="password" class="stdedit" name="pref_api_key" id="lastfm-guidance-api-key" value="[% prefs.api_key %]" size="42" autocomplete="off">
+        [% END %]
+    </div>
+
+    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_TRACK_INFLUENCE" desc="GUIDANCE_LASTFM_TRACK_INFLUENCE_DESC" %]
+        <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_track_influence" id="lastfm_track_influence" value="[% prefs.lastfm_track_influence %]" size="5">
+    [% END %]
+
+    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_ARTIST_MODE" desc="GUIDANCE_LASTFM_ARTIST_MODE_DESC" %]
+        <select class="stdedit" name="pref_lastfm_artist_mode" id="lastfm_artist_mode">
+            <option value="target_share" [% IF prefs.lastfm_artist_mode == 'target_share' %]selected[% END %]>[% "GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE" | string %]</option>
+            <option value="bounded_influence" [% IF prefs.lastfm_artist_mode == 'bounded_influence' %]selected[% END %]>[% "GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED" | string %]</option>
+        </select>
+    [% END %]
+
+    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_ARTIST_LEVEL" desc="GUIDANCE_LASTFM_ARTIST_LEVEL_DESC" %]
+        <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_artist_level" id="lastfm_artist_level" value="[% prefs.lastfm_artist_level %]" size="5">
+    [% END %]
+[% END %]
+
+<script>
+(function () {
+    var source = document.getElementById('lastfm-guidance-source');
+    var apiKey = document.getElementById('lastfm-guidance-api-key-group');
+    if (!source || !apiKey) return;
+    function refresh() {
+        apiKey.style.display = source.value === 'api_key' ? '' : 'none';
+    }
+    source.addEventListener('change', refresh);
+    refresh();
+}());
+</script>
+
+[% PROCESS settings/footer.html %]

@@ -1,0 +1,71 @@
+PLUGIN_LASTFMGUIDANCE_NAME
+	EN	Bliss Guidance: Last.fm
+
+PLUGIN_LASTFMGUIDANCE_DESC
+	EN	Optional Last.fm similarity guidance for compatible Bliss hosts
+
+DEBUG_PLUGIN_LASTFMGUIDANCE
+	EN	Bliss Guidance: Last.fm
+
+PLUGIN_LASTFMGUIDANCE_NOTE
+	EN	This provider contributes optional Last.fm similar-track and similar-artist evidence. Hosts discover it automatically, but keep it disabled until you enable it in each host's settings.
+
+PLUGIN_LASTFMGUIDANCE_STATUS
+	EN	Provider status
+
+PLUGIN_LASTFMGUIDANCE_STATUS_AVAILABLE
+	EN	The Last.fm guidance provider is available.
+
+PLUGIN_LASTFMGUIDANCE_STATUS_UNAVAILABLE
+	EN	The provider is not available (%s).
+
+PLUGIN_LASTFMGUIDANCE_DEFAULTS
+	EN	Default guidance policy
+
+PLUGIN_LASTFMGUIDANCE_DEFAULTS_NOTE
+	EN	These defaults apply when a host enables this provider without overriding an individual control. A host may show its own effective values for a job.
+
+GUIDANCE_LASTFM_SOURCE
+	EN	Last.fm source
+
+GUIDANCE_LASTFM_SOURCE_DESC
+	EN	Choose LastMix when its Lyrion plugin is installed, or API Key to let this provider query Last.fm directly. The provider never silently changes this choice.
+
+GUIDANCE_LASTFM_SOURCE_LASTMIX
+	EN	LastMix
+
+GUIDANCE_LASTFM_SOURCE_LASTMIX_UNAVAILABLE
+	EN	LastMix (not installed)
+
+GUIDANCE_LASTFM_SOURCE_API_KEY
+	EN	API Key
+
+GUIDANCE_LASTFM_API_KEY
+	EN	Last.fm API key
+
+GUIDANCE_LASTFM_API_KEY_DESC
+	EN	Create an API account at last.fm/api/account/create. The key is used only to start the native provider and is not included in optimizer requests, artifacts, logs, or preview results.
+
+GUIDANCE_LASTFM_TRACK_INFLUENCE
+	EN	Similar-track guidance (%)
+
+GUIDANCE_LASTFM_TRACK_INFLUENCE_DESC
+	EN	Zero disables similar-track guidance. Higher values give a bounded boost to candidates supported by Last.fm similar-track evidence.
+
+GUIDANCE_LASTFM_ARTIST_MODE
+	EN	How similar-artist matches affect candidates
+
+GUIDANCE_LASTFM_ARTIST_MODE_DESC
+	EN	Target share aims for the selected candidate pool to contain the chosen percentage of supported artists. Bounded influence instead gives each supported candidate a bounded boost alongside other optional guidance.
+
+GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE
+	EN	Target share
+
+GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED
+	EN	Per-candidate boost
+
+GUIDANCE_LASTFM_ARTIST_LEVEL
+	EN	Similar-artist guidance (%)
+
+GUIDANCE_LASTFM_ARTIST_LEVEL_DESC
+	EN	The target share in Target share mode, or the maximum bounded boost in Per-candidate boost mode. Zero disables similar-artist guidance.

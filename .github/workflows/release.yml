@@ -1,0 +1,98 @@
+name: "Publish Bliss Guidance: Last.fm"
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_release:
+        description: "bliss-guidance-lastfm release tag"
+        required: true
+        default: "v0.2.0"
+      prerelease:
+        description: "Mark the GitHub release as prerelease"
+        type: boolean
+        required: true
+        default: true
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+env:
+  NATIVE_REPO: chrober/bliss-guidance-lastfm
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run provider contract tests
+        run: |
+          perl tests/provider_descriptor.t
+          perl tests/settings_contract.t
+          perl tests/plugin_contract.t
+          perl tests/installed_layout.t
+      - name: Verify no native executable is committed
+        run: |
+          set -euo pipefail
+          if git ls-files 'LastFmGuidance/Bin/*/*' | grep -vE 'LastFmGuidance/Bin/SOURCE.md$' | grep -q .; then
+            echo "Native binaries must be release-packaged, not source-controlled." >&2
+            exit 1
+          fi
+
+  package-release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Derive release metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import xml.etree.ElementTree as ET; print(ET.parse("LastFmGuidance/install.xml").getroot().findtext("version"))')"
+          native_release="${{ github.event_name == 'workflow_dispatch' && inputs.native_release || 'v0.2.0' }}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "native_release=$native_release" >> "$GITHUB_OUTPUT"
+      - name: Download native provider assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_RELEASE: ${{ steps.meta.outputs.native_release }}
+        run: |
+          set -euo pipefail
+          mkdir native-assets
+          gh release download "$NATIVE_RELEASE" --repo "$NATIVE_REPO" --dir native-assets --pattern 'bliss-guidance-lastfm-*'
+      - name: Build platform plugin archives
+        id: package
+        run: |
+          set -euo pipefail
+          version='${{ steps.meta.outputs.version }}'
+          mkdir -p dist staging
+          install -m 0755 -D native-assets/bliss-guidance-lastfm-aarch64-linux LastFmGuidance/Bin/aarch64-linux/bliss-guidance-lastfm
+          install -m 0755 -D native-assets/bliss-guidance-lastfm-armhf-linux LastFmGuidance/Bin/armhf-linux/bliss-guidance-lastfm
+          install -m 0755 -D native-assets/bliss-guidance-lastfm-x86_64-linux LastFmGuidance/Bin/x86_64-linux/bliss-guidance-lastfm
+          install -m 0755 -D native-assets/bliss-guidance-lastfm-mac LastFmGuidance/Bin/mac/bliss-guidance-lastfm
+          install -m 0644 -D native-assets/bliss-guidance-lastfm-windows.exe LastFmGuidance/Bin/windows/bliss-guidance-lastfm.exe
+          package_platform() {
+            platform="$1"; asset="$2"; rm -rf staging/LastFmGuidance; cp -a LastFmGuidance staging/LastFmGuidance
+            case "$platform" in
+              linux) rm -rf staging/LastFmGuidance/Bin/mac staging/LastFmGuidance/Bin/windows ;;
+              mac) rm -rf staging/LastFmGuidance/Bin/aarch64-linux staging/LastFmGuidance/Bin/armhf-linux staging/LastFmGuidance/Bin/x86_64-linux staging/LastFmGuidance/Bin/windows ;;
+              windows) rm -rf staging/LastFmGuidance/Bin/aarch64-linux staging/LastFmGuidance/Bin/armhf-linux staging/LastFmGuidance/Bin/x86_64-linux staging/LastFmGuidance/Bin/mac ;;
+            esac
+            (cd staging && zip -q -r "../dist/$asset" LastFmGuidance)
+          }
+          package_platform linux "lms-guidance-lastfm-linux-$version.zip"
+          package_platform mac "lms-guidance-lastfm-mac-$version.zip"
+          package_platform windows "lms-guidance-lastfm-windows-$version.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lms-guidance-lastfm-${{ steps.meta.outputs.version }}
+          path: dist/*
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          printf '# Bliss Guidance: Last.fm %s\n\nPlatform-specific Lyrion provider packages.\n' "$VERSION" > release-notes.md
+          gh release create "v$VERSION" dist/* --title "Bliss Guidance: Last.fm $VERSION" --notes-file release-notes.md
