@@ -8,7 +8,17 @@ its own or bypasses Bliss similarity, repeat, or quality rules.
 Choose one provider-owned source on its settings page:
 
 - **LastMix** uses the installed LastMix plugin and remains unavailable until that plugin is installed.
-- **API Key** lets the native provider use a user-supplied Last.fm API key. The key is passed only through the child process environment; it never enters request JSON, artifacts, logs, or preview results.
+- **API Key** is the settings and secret-handling surface for the planned
+  direct-acquisition path. The released native provider does not yet perform
+  Last.fm HTTP/cache acquisition in this mode, so it currently contributes
+  neutral guidance. The key is passed only through the child process
+  environment; it never enters request JSON, artifacts, logs, or preview
+  results.
+
+The currently working end-to-end path is **LastMix**: LastMix obtains the
+observations, the host resolves them to the frozen local candidate inventory,
+and the native provider consumes the resulting artifact. The Lyrion provider
+release is 0.2.0; direct API-key acquisition remains follow-up work.
 
 Hosts discover the provider automatically but default it to disabled. Their
 provider settings use these defaults unless a host explicitly overrides an
