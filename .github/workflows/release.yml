@@ -6,7 +6,7 @@ on:
       native_release:
         description: "bliss-guidance-lastfm release tag"
         required: true
-        default: "v0.2.0"
+        default: "v0.1.2"
       prerelease:
         description: "Mark the GitHub release as prerelease"
         type: boolean
@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(python -c 'import xml.etree.ElementTree as ET; print(ET.parse("LastFmGuidance/install.xml").getroot().findtext("version"))')"
-          native_release="${{ github.event_name == 'workflow_dispatch' && inputs.native_release || 'v0.2.0' }}"
+          native_release="${{ github.event_name == 'workflow_dispatch' && inputs.native_release || 'v0.1.2' }}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "native_release=$native_release" >> "$GITHUB_OUTPUT"
       - name: Download native provider assets
