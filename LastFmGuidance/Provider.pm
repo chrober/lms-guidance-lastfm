@@ -64,6 +64,8 @@ sub guidance_provider_descriptor_v1 {
                 key => 'lastfm_artist_level', type => 'integer', minimum => 0,
                 maximum => 100, factory_default => 75, host_overridable => 1,
                 guidance_channel => 'lastfm_artist', render_as => 'slider',
+                guidance_policy => 'target_share_or_bounded',
+                guidance_mode_key => 'lastfm_artist_mode',
                 label_token => 'GUIDANCE_LASTFM_ARTIST_LEVEL',
                 help_token => 'GUIDANCE_LASTFM_ARTIST_LEVEL_DESC',
             },
@@ -141,6 +143,12 @@ sub guidance_provider_native_spi_config_v1 {
 
     my $effective = _effective_policy($resolved_policy || {}, guidance_provider_defaults_v1());
     my @artifacts;
+    my $options = {
+        acquisition_mode => $effective->{source} eq 'api_key' ? 'direct' : 'artifact',
+        lastfm_track_influence => $effective->{lastfm_track_influence},
+        lastfm_artist_mode => $effective->{lastfm_artist_mode},
+        lastfm_artist_level => $effective->{lastfm_artist_level},
+    };
     if ($effective->{source} eq 'lastmix') {
         my $artifact = $trusted_context->{lastfm_relations_artifact};
         die 'Last.fm LastMix mode requires a trusted resolved evidence artifact'
@@ -150,16 +158,21 @@ sub guidance_provider_native_spi_config_v1 {
             kind => 'resolved-lastfm-evidence-v1', path => $artifact->{path}, sha256 => $artifact->{sha256},
         };
     }
+    else {
+        for my $key (qw(cache_path cache_ttl_seconds request_deadline_ms max_concurrent_requests)) {
+            die "Last.fm direct mode requires trusted $key"
+                unless exists $trusted_context->{$key};
+            $options->{$key} = $trusted_context->{$key};
+        }
+        if (defined $trusted_context->{api_endpoint} && length $trusted_context->{api_endpoint}) {
+            $options->{api_endpoint} = $trusted_context->{api_endpoint};
+        }
+    }
 
     return {
         id => 'lastfm-guidance',
         program => $status->{program},
-        options => {
-            source => $effective->{source},
-            lastfm_track_influence => $effective->{lastfm_track_influence},
-            lastfm_artist_mode => $effective->{lastfm_artist_mode},
-            lastfm_artist_level => $effective->{lastfm_artist_level},
-        },
+        options => $options,
         artifacts => \@artifacts,
         resources => [],
         timeout_ms => 5000,
