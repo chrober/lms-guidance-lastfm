@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Update the LMS extension feed entry for Bliss Guidance: Last.fm."""
+
+from __future__ import annotations
+
+import argparse
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+PLUGIN_NAME = "LastFmGuidance"
+PLUGIN_TITLE = "Bliss Guidance: Last.fm"
+PLUGIN_DESC = "Optional Last.fm similarity guidance for compatible Bliss hosts"
+PLUGIN_CREATOR = "Christoph O'Bermair"
+
+
+def child(parent: ET.Element, tag: str, text: str | None = None, **attrs: str) -> ET.Element:
+    element = ET.SubElement(parent, tag, attrs)
+    if text is not None:
+        element.text = text
+    return element
+
+
+def package(version: str, url: str, sha: str, target: str) -> ET.Element:
+    plugin = ET.Element(
+        "plugin",
+        {"name": PLUGIN_NAME, "version": version, "minTarget": "8.5", "maxTarget": "*"},
+    )
+    child(plugin, "title", PLUGIN_TITLE, lang="EN")
+    child(plugin, "desc", PLUGIN_DESC, lang="EN")
+    child(plugin, "url", url)
+    child(plugin, "sha", sha)
+    child(plugin, "creator", PLUGIN_CREATOR)
+    child(plugin, "category", "playlists")
+    child(plugin, "target", target)
+    return plugin
+
+
+def update(repo_xml: Path, version: str, packages: tuple[tuple[str, str, str], ...]) -> None:
+    tree = ET.parse(repo_xml)
+    root = tree.getroot()
+    plugins = root.find("plugins")
+    if plugins is None:
+        plugins = ET.SubElement(root, "plugins")
+    for existing in list(plugins.findall("plugin")):
+        if existing.get("name") == PLUGIN_NAME:
+            plugins.remove(existing)
+    for target, url, sha in packages:
+        plugins.append(package(version, url, sha, target))
+    ET.indent(tree, space="  ")
+    tree.write(repo_xml, encoding="utf-8", xml_declaration=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-xml", type=Path, required=True)
+    parser.add_argument("--version", required=True)
+    for platform in ("linux", "mac", "windows"):
+        parser.add_argument(f"--{platform}-url", required=True)
+        parser.add_argument(f"--{platform}-sha", required=True)
+    args = parser.parse_args()
+    update(
+        args.repo_xml,
+        args.version,
+        (
+            ("unix", args.linux_url, args.linux_sha),
+            ("mac", args.mac_url, args.mac_sha),
+            ("windows", args.windows_url, args.windows_sha),
+        ),
+    )
+
+
+if __name__ == "__main__":
+    main()
