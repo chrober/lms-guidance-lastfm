@@ -236,6 +236,12 @@ sub guidance_provider_acquire_artifacts_v1 {
                 }],
                 edges => \@edges,
             };
+            my $candidate_tracks = $trusted_context->{candidate_tracks};
+            if (ref($candidate_tracks) eq 'ARRAY') {
+                $bundle->{edges} = _resolve_candidate_edges(
+                    $bundle->{edges}, $candidate_tracks,
+                );
+            }
             my $fh;
             unless (open $fh, '>', $path) {
                 return $on_complete->({ available => 0, artifacts => [], diagnostic => 'cannot write trusted LastMix artifact' });
@@ -249,7 +255,12 @@ sub guidance_provider_acquire_artifacts_v1 {
             close $read_fh;
             return $on_complete->({
                 available => 1,
-                artifacts => [{ kind => 'semantic-evidence-v1', path => $path, sha256 => $sha256 }],
+                artifacts => [{
+                    kind => ref($candidate_tracks) eq 'ARRAY'
+                        ? 'resolved-lastfm-evidence-v1' : 'semantic-evidence-v1',
+                    path => $path,
+                    sha256 => $sha256,
+                }],
                 diagnostic => '',
                 statistics => { requests => 0 + $requests, failures => 0 + $failures, edges => scalar @edges },
             });
@@ -329,6 +340,70 @@ sub _edge {
         observed_at => strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(time())),
         cache_state => 'fresh',
     };
+}
+
+sub _resolve_candidate_edges {
+    my ($edges, $candidates) = @_;
+    $edges = [] unless ref($edges) eq 'ARRAY';
+    $candidates = [] unless ref($candidates) eq 'ARRAY';
+    my %index = (
+        recording_mbid => {}, recording_name => {},
+        artist_mbid => {}, artist_name => {},
+    );
+    for my $candidate (@$candidates) {
+        next unless ref($candidate) eq 'HASH';
+        my $candidate_id = $candidate->{candidate_id} || $candidate->{id} || '';
+        next unless length $candidate_id;
+        my $recording_mbid = _normalize($candidate->{recording_mbid});
+        push @{$index{recording_mbid}{$recording_mbid}}, $candidate_id
+            if length $recording_mbid;
+        my $recording_name = _normalize($candidate->{artist}) . "\0"
+            . _normalize($candidate->{title});
+        push @{$index{recording_name}{$recording_name}}, $candidate_id
+            unless $recording_name eq "\0";
+        my @artist_mbids = (
+            $candidate->{artist_mbid},
+            @{ref($candidate->{artist_mbids}) eq 'ARRAY'
+                ? $candidate->{artist_mbids} : []},
+        );
+        for my $artist_mbid (@artist_mbids) {
+            $artist_mbid = _normalize($artist_mbid);
+            push @{$index{artist_mbid}{$artist_mbid}}, $candidate_id
+                if length $artist_mbid;
+        }
+        my $artist_name = _normalize($candidate->{artist});
+        push @{$index{artist_name}{$artist_name}}, $candidate_id
+            if length $artist_name;
+    }
+
+    my (@resolved, %seen);
+    for my $edge (@$edges) {
+        next unless ref($edge) eq 'HASH' && ref($edge->{candidate}) eq 'HASH';
+        my $candidate = $edge->{candidate};
+        my @matches;
+        if (($candidate->{kind} || '') eq 'recording') {
+            my $mbid = _normalize($candidate->{mbid});
+            @matches = @{$index{recording_mbid}{$mbid} || []} if length $mbid;
+            if (!@matches) {
+                my $key = _normalize($candidate->{name}) . "\0"
+                    . _normalize($candidate->{title});
+                @matches = @{$index{recording_name}{$key} || []};
+            }
+        } elsif (($candidate->{kind} || '') eq 'artist') {
+            my $mbid = _normalize($candidate->{mbid});
+            @matches = @{$index{artist_mbid}{$mbid} || []} if length $mbid;
+            if (!@matches) {
+                my $name = _normalize($candidate->{name});
+                @matches = @{$index{artist_name}{$name} || []};
+            }
+        }
+        for my $candidate_id (@matches) {
+            next if $seen{join("\0", $edge->{source}{id} || '', $candidate_id,
+                $edge->{source}{kind} || '')}++;
+            push @resolved, { %$edge, resolved_candidate_id => $candidate_id };
+        }
+    }
+    return \@resolved;
 }
 
 sub _effective_policy {

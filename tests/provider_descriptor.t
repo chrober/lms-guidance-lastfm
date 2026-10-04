@@ -95,15 +95,24 @@ Plugins::LastFmGuidance::Provider::guidance_provider_acquire_artifacts_v1(
             id => 'lms-track-1', artist => 'Seed Artist', title => 'Seed Song',
             recording_mbid => 'recording-mbid-1', artist_mbids => ['artist-mbid-1'],
         }],
+        candidate_tracks => [{
+            candidate_id => 'candidate-1', artist => 'Related Artist', title => 'Related Song',
+            recording_mbid => 'recording-mbid-2', artist_mbids => ['artist-mbid-2'],
+        }],
         artifact_path => $artifact_path,
     },
     sub { $acquisition = shift; },
 );
 ok($acquisition->{available}, 'LastMix acquisition completes as an available provider result');
-is($acquisition->{artifacts}[0]{kind}, 'semantic-evidence-v1', 'LastMix acquisition returns a raw semantic evidence artifact for host resolution');
+is($acquisition->{artifacts}[0]{kind}, 'resolved-lastfm-evidence-v1', 'LastMix acquisition returns a candidate-resolved evidence artifact');
 my $artifact_text = do { open my $fh, '<', $artifact_path or die $!; local $/; <$fh> };
 my $artifact = decode_json($artifact_text);
-is(scalar @{$artifact->{edges}}, 3, 'LastMix acquisition writes recording and artist relation observations');
+is(scalar @{$artifact->{edges}}, 2, 'LastMix acquisition writes one resolved recording and artist observation per candidate');
+is_deeply(
+    [ map { $_->{resolved_candidate_id} } @{$artifact->{edges}} ],
+    ['candidate-1', 'candidate-1'],
+    'LastMix evidence is resolved only against the bounded host candidate set',
+);
 
 is_deeply(
     Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {}),
