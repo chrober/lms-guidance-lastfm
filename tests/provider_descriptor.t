@@ -34,9 +34,17 @@ is_deeply($descriptor->{native_spi}{channels}, {
 
 my %controls = map { $_->{key} => $_ } @{$descriptor->{controls}};
 is_deeply($controls{source}{values}, [qw(lastmix api_key)], 'source selector exposes LastMix and API Key');
+is_deeply($controls{source}{option_labels}, {
+    lastmix => 'GUIDANCE_LASTFM_SOURCE_LASTMIX',
+    api_key => 'GUIDANCE_LASTFM_SOURCE_API_KEY',
+}, 'source enum publishes localized labels for generic host renderers');
 is($controls{source}{host_overridable}, 0, 'source selection remains provider-owned');
 is($controls{lastfm_track_influence}{factory_default}, 25, 'track guidance defaults to 25 percent');
 is($controls{lastfm_artist_mode}{factory_default}, 'target_share', 'artist strategy defaults to target share');
+is_deeply($controls{lastfm_artist_mode}{option_labels}, {
+    target_share => 'GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE',
+    bounded_influence => 'GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED',
+}, 'artist-mode enum publishes localized labels for generic host renderers');
 is($controls{lastfm_artist_level}{factory_default}, 75, 'artist guidance defaults to 75 percent');
 is($controls{lastfm_artist_level}{guidance_policy}, 'target_share_or_bounded',
     'artist level publishes the shared target-share or bounded policy contract');

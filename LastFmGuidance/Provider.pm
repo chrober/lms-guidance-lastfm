@@ -42,6 +42,10 @@ sub guidance_provider_descriptor_v1 {
         controls => [
             {
                 key => 'source', type => 'enum', values => [qw(lastmix api_key)],
+                option_labels => {
+                    lastmix => 'GUIDANCE_LASTFM_SOURCE_LASTMIX',
+                    api_key => 'GUIDANCE_LASTFM_SOURCE_API_KEY',
+                },
                 factory_default => 'lastmix', host_overridable => 0,
                 label_token => 'GUIDANCE_LASTFM_SOURCE',
                 help_token => 'GUIDANCE_LASTFM_SOURCE_DESC',
@@ -56,6 +60,10 @@ sub guidance_provider_descriptor_v1 {
             {
                 key => 'lastfm_artist_mode', type => 'enum',
                 values => [qw(target_share bounded_influence)],
+                option_labels => {
+                    target_share => 'GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE',
+                    bounded_influence => 'GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED',
+                },
                 factory_default => 'target_share', host_overridable => 1,
                 label_token => 'GUIDANCE_LASTFM_ARTIST_MODE',
                 help_token => 'GUIDANCE_LASTFM_ARTIST_MODE_DESC',
