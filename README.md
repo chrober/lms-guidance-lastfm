@@ -24,6 +24,18 @@ Hosts discover the provider automatically but default it to disabled. Their
 provider settings use these defaults unless a host explicitly overrides an
 eligible policy control.
 
+## Installation
+
+Install **Bliss Guidance: Last.fm** through
+[chrober's LMS Plugin Repository](https://github.com/chrober/lms-plugins), then
+enable the provider in Lyrion. Install and configure LastMix separately when
+you want to use the LastMix source. A compatible host discovers the provider
+but keeps it disabled until you explicitly enable it in that host's settings.
+
+Configure the source and provider-owned guidance defaults on the provider's
+own settings page. Host documentation describes how to enable the provider and
+optionally override those defaults for a particular host or job.
+
 The native protocol is owned by
 [bliss-playlist-guidance-spi](https://github.com/chrober/bliss-playlist-guidance-spi).
 Provider conventions and UI rules are documented in
