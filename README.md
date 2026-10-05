@@ -6,6 +6,8 @@ similar-track and similar-artist evidence when a compatible Bliss host invokes
 it. It does not create mixes, reorder tracks, or control playback by itself;
 another plugin must discover, enable, and use it.
 
+## How it works
+
 Choose one provider-owned source on its settings page:
 
 - **LastMix** uses the installed LastMix plugin and remains unavailable until that plugin is installed.
@@ -31,21 +33,20 @@ The compatible host plugins currently include
 [Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab). Both discover
 this provider but leave it disabled until you explicitly enable it.
 
-## Installation
-
-Install **Bliss Guidance: Last.fm** through
-[chrober's LMS Plugin Repository](https://github.com/chrober/lms-plugins), then
-enable the provider in Lyrion. Install and configure LastMix separately when
-you want to use the LastMix source. A compatible host discovers the provider
-but keeps it disabled until you explicitly enable it in that host's settings.
-
-Configure the source and provider-owned guidance defaults on the provider's
-own settings page. Host documentation describes how to enable the provider and
-optionally override those defaults for a particular host or job.
-
 The native implementation is
 [bliss-guidance-lastfm](https://github.com/chrober/bliss-guidance-lastfm).
 The native protocol is owned by
 [bliss-playlist-guidance-spi](https://github.com/chrober/bliss-playlist-guidance-spi).
 Provider conventions and UI rules are documented in
 [lms-bliss-guidance-provider-kit](https://github.com/chrober/lms-bliss-guidance-provider-kit).
+
+## Installation
+
+Install **Bliss Guidance: Last.fm** through
+[chrober's LMS Plugin Repository](https://github.com/chrober/lms-plugins), then
+enable the provider in a compatible host. Install and configure LastMix
+separately when you want to use the LastMix source.
+
+Configure the source and provider-owned guidance defaults on the provider's
+own settings page. Host documentation describes how to enable the provider and
+optionally override those defaults for a particular host or job.
