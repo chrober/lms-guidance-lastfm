@@ -34,11 +34,11 @@ The compatible host plugins currently include
 this provider but leave it disabled until you explicitly enable it.
 
 The native implementation is
-[bliss-guidance-lastfm](https://github.com/chrober/bliss-guidance-lastfm).
+[`bliss-guidance-lastfm`](https://github.com/chrober/bliss-guidance-lastfm).
 The native protocol is owned by
-[bliss-playlist-guidance-spi](https://github.com/chrober/bliss-playlist-guidance-spi).
+[`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi).
 Provider conventions and UI rules are documented in
-[lms-bliss-guidance-provider-kit](https://github.com/chrober/lms-bliss-guidance-provider-kit).
+[`lms-bliss-guidance-provider-kit`](https://github.com/chrober/lms-bliss-guidance-provider-kit).
 
 ## Installation
 
