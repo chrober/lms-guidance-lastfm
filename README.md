@@ -24,6 +24,11 @@ Hosts discover the provider automatically but default it to disabled. Their
 provider settings use these defaults unless a host explicitly overrides an
 eligible policy control.
 
+The compatible host plugins currently include
+[Better Call Bliss](https://github.com/chrober/lms-better-call-bliss) and
+[Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab). Both discover
+this provider but leave it disabled until you explicitly enable it.
+
 ## Installation
 
 Install **Bliss Guidance: Last.fm** through
