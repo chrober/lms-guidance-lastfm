@@ -1,9 +1,10 @@
 # Bliss Guidance: Last.fm
 
-`lms-guidance-lastfm` is an independently installable Lyrion provider in the
-**Bliss Guidance** family. It contributes bounded Last.fm similar-track and
-similar-artist evidence to compatible Bliss hosts; it never chooses tracks on
-its own or bypasses Bliss similarity, repeat, or quality rules.
+`lms-guidance-lastfm` is an independently installable, passive Lyrion guidance
+provider in the **Bliss Guidance** family. It contributes bounded Last.fm
+similar-track and similar-artist evidence when a compatible Bliss host invokes
+it. It does not create mixes, reorder tracks, or control playback by itself;
+another plugin must discover, enable, and use it.
 
 Choose one provider-owned source on its settings page:
 
@@ -17,8 +18,9 @@ Choose one provider-owned source on its settings page:
 
 The currently working end-to-end path is **LastMix**: LastMix obtains the
 observations, the host resolves them to the frozen local candidate inventory,
-and the native provider consumes the resulting artifact. The Lyrion provider
-release is 0.2.0; direct API-key acquisition remains follow-up work.
+and the native provider consumes the resulting artifact. Direct API-key
+acquisition remains a provider follow-up; the current settings and data-flow
+limitations are described above.
 
 Hosts discover the provider automatically but default it to disabled. Their
 provider settings use these defaults unless a host explicitly overrides an
@@ -41,6 +43,8 @@ Configure the source and provider-owned guidance defaults on the provider's
 own settings page. Host documentation describes how to enable the provider and
 optionally override those defaults for a particular host or job.
 
+The native implementation is
+[bliss-guidance-lastfm](https://github.com/chrober/bliss-guidance-lastfm).
 The native protocol is owned by
 [bliss-playlist-guidance-spi](https://github.com/chrober/bliss-playlist-guidance-spi).
 Provider conventions and UI rules are documented in
