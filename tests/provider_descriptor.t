@@ -17,6 +17,20 @@ use lib '.';
     sub import { }
     sub preferences { return $PREFS }
     $INC{'Slim/Utils/Prefs.pm'} = __FILE__;
+
+    package TestLog;
+    sub new { bless { lines => [] }, shift }
+    sub is_debug { 1 }
+    sub is_info { 1 }
+    sub debug { push @{$_[0]{lines}}, ['debug', $_[1]] }
+    sub info { push @{$_[0]{lines}}, ['info', $_[1]] }
+    sub warn { push @{$_[0]{lines}}, ['warning', $_[1]] }
+    sub error { push @{$_[0]{lines}}, ['error', $_[1]] }
+
+    package Slim::Utils::Log;
+    our $LOGGER = TestLog->new;
+    sub addLogCategory { return $LOGGER }
+    $INC{'Slim/Utils/Log.pm'} = __FILE__;
 }
 
 require 'LastFmGuidance/Provider.pm';
@@ -121,6 +135,16 @@ is_deeply(
     ['candidate-1', 'candidate-1'],
     'LastMix evidence is resolved only against the bounded host candidate set',
 );
+ok(
+    scalar(grep { $_->[1] eq 'Last.fm: got 1 similar tracks for "Seed Artist - Seed Song"' }
+        @{$Slim::Utils::Log::LOGGER->{lines}}),
+    'LastMix acquisition logs bounded similar-track results in the provider category',
+);
+ok(
+    scalar(grep { $_->[1] eq 'Last.fm: got 1 similar artists for "Seed Artist"' }
+        @{$Slim::Utils::Log::LOGGER->{lines}}),
+    'LastMix acquisition logs bounded similar-artist results in the provider category',
+);
 
 is_deeply(
     Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {}),
@@ -161,9 +185,44 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
         lastfm_track_influence => 25,
         lastfm_artist_mode => 'bounded_influence',
         lastfm_artist_level => 75,
+        diagnostic_level => 'debug',
     }, 'direct API mode passes only trusted non-secret native configuration');
     unlike(encode_json($config), qr/test-direct-api-key/,
         'direct native configuration never serializes the API key');
 }
+
+Plugins::LastFmGuidance::Provider::guidance_provider_log_events_v1([
+    {
+        event_version => 'guidance_log_event_v1', level => 'info', phase => 'prepare',
+        event => 'lastfm_lookup_completed', provider_id => 'lastfm-guidance',
+        operation => 'artist.getSimilar', source => { label => 'Rotor' },
+        cache_state => 'miss', result_count => 25,
+    },
+    {
+        event_version => 'guidance_log_event_v1', level => 'debug', phase => 'score',
+        event => 'lastfm_scoring_completed', provider_id => 'lastfm-guidance',
+        details => { candidates => 20, similar_track_supported => 1, similar_artist_supported => 4 },
+    },
+    {
+        event_version => 'guidance_log_event_v1', level => 'debug', phase => 'prepare',
+        event => 'lastfm_request_json', provider_id => 'lastfm-guidance',
+        details => { request => { method => 'artist.getSimilar', api_key => 'must-not-leak' } },
+    },
+], { host => 'fixture' });
+ok(
+    scalar(grep { $_->[1] eq 'Last.fm: got 25 similar artists for "Rotor"' }
+        @{$Slim::Utils::Log::LOGGER->{lines}}),
+    'native lookup event is rendered into the established Last.fm vocabulary',
+);
+unlike(
+    join("\n", map { $_->[1] } @{$Slim::Utils::Log::LOGGER->{lines}}),
+    qr/must-not-leak/,
+    'provider event rendering redacts API keys defensively',
+);
+ok(
+    scalar(grep { $_->[1] eq 'Last.fm scoring: candidates=20, similar-track supported=1, similar-artist supported=4' }
+        @{$Slim::Utils::Log::LOGGER->{lines}}),
+    'native score event renders bounded debug diagnostics',
+);
 
 done_testing;
