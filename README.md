@@ -11,18 +11,16 @@ another plugin must discover, enable, and use it.
 Choose one provider-owned source on its settings page:
 
 - **LastMix** uses the installed LastMix plugin and remains unavailable until that plugin is installed.
-- **API Key** is the settings and secret-handling surface for the planned
-  direct-acquisition path. The released native provider does not yet perform
-  Last.fm HTTP/cache acquisition in this mode, so it currently contributes
-  neutral guidance. The key is passed only through the child process
+- **API Key** lets the native provider acquire and cache Last.fm relations
+  during SPI preparation. The key is passed only through the child-process
   environment; it never enters request JSON, artifacts, logs, or preview
   results.
 
-The currently working end-to-end path is **LastMix**: LastMix obtains the
-observations, the host resolves them to the frozen local candidate inventory,
-and the native provider consumes the resulting artifact. Direct API-key
-acquisition remains a provider follow-up; the current settings and data-flow
-limitations are described above.
+With **LastMix**, the Lyrion provider obtains observations, the host resolves
+them to the frozen local candidate inventory, and the native provider consumes
+the resulting artifact. With **API Key**, the native provider queries only the
+frozen source anchors during `prepare`, persists a bounded TTL cache, and then
+scores the host's Bliss-qualified candidate batches without network access.
 
 Hosts discover the provider automatically but default it to disabled. Their
 provider settings use these defaults unless a host explicitly overrides an
@@ -52,9 +50,11 @@ flowchart LR
     Perl -->|native config and artifact descriptor| Host
     Host -->|SPI prepare and score JSONL| Native["bliss-guidance-lastfm executable"]
     Artifact -.->|trusted, hash-bound input| Native
+    Native -->|direct prepare only| LastFm["Last.fm API"]
+    Native <--> Cache["Provider TTL cache"]
     Native -->|bounded guidance and selection_trace_v1| Host
     Host -->|accepted result| Sinks["preview report / saved playlist / player queue"]
-    Prefs -.->|API key launch environment only| Native
+    Prefs -.->|API key in launch environment only| Native
 ```
 
 The provider-owned files and streams are:
@@ -66,8 +66,9 @@ The provider-owned files and streams are:
   `plugin.guidancelastfm` preference namespace.
 - `LastFmGuidance/Provider.pm` publishes the descriptor and defaults, resolves
   host/job overrides, calls LastMix in LastMix mode, and writes the temporary
-  `resolved-lastfm-evidence-v1` JSON artifact supplied by the host. The host
-  receives its path and SHA-256 and passes them to the native process.
+  `resolved-lastfm-evidence-v1` JSON artifact supplied by the host. In API-key
+  mode it instead supplies only non-secret cache and request limits plus the
+  launch-only environment variable.
 - `bliss-guidance-lastfm` reads that artifact and the bounded candidate/context
   messages from SPI JSONL on stdin, then returns bounded guidance,
   `selection_trace_v1`, and diagnostics on stdout. There is no separate
@@ -83,30 +84,43 @@ sequenceDiagram
     participant H as Bliss host
     participant P as Last.fm provider plugin
     participant L as LastMix
+    participant A as Last.fm API
     participant F as resolved-lastfm-evidence-v1 JSON
+    participant C as Direct-mode TTL cache
     participant N as Native provider
     participant S as Host result sinks
 
     U->>H: Enable provider and choose source/policy
     H->>P: Read descriptor, defaults, and status
     P-->>H: Provider metadata and effective defaults
-    H->>P: Acquire artifacts(source tracks, candidates, artifact path)
-    P->>L: Query similar tracks and similar artists
-    L-->>P: Observations or tolerated failures
-    P->>F: Write resolved candidate edges
-    P->>F: Reopen, hash, and verify artifact
-    P-->>H: Artifact path, SHA-256, statistics
-    H->>N: prepare JSONL(options, artifact descriptor)
+    alt LastMix source
+        H->>P: Acquire artifacts(source tracks, candidates, artifact path)
+        P->>L: Query similar tracks and similar artists
+        L-->>P: Observations or tolerated failures
+        P->>F: Write resolved candidate edges
+        P->>F: Reopen, hash, and verify artifact
+        P-->>H: Artifact path, SHA-256, statistics
+        H->>N: prepare JSONL(options, anchors, artifact descriptor)
+        N->>F: Read and verify hash-bound evidence
+    else API Key source
+        P-->>H: Non-secret cache and request limits
+        P-->>N: API key in child-process environment
+        H->>N: prepare JSONL(options, frozen anchors)
+        N->>C: Read fresh cached relations
+        N->>A: Fetch missing or expired anchor relations
+        A-->>N: Similar tracks and artists or tolerated failures
+        N->>C: Merge refreshed relations safely
+    end
     H->>N: score JSONL(anchors, bounded candidates)
-    N->>F: Read and verify hash-bound evidence
     N-->>H: Guidance, selection_trace_v1, diagnostics
     H->>S: Combine with Bliss and publish only after acceptance
 ```
 
-In **API Key** mode the provider exposes the key only as a child-process
-environment variable. The released native path does not yet perform direct
-Last.fm HTTP/cache acquisition, so no evidence artifact is created and that
-mode currently contributes neutral guidance.
+In **API Key** mode no LastMix artifact is created. Remote requests are limited
+to `prepare`; `score` is deterministic for the prepared session and performs no
+network I/O. Cache misses, invalid responses, rate limits, timeouts, and
+offline operation degrade to partial or neutral guidance rather than blocking
+the Bliss result.
 
 ## Installation
 
