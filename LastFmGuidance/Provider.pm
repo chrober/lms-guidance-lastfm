@@ -11,6 +11,7 @@ use POSIX qw(strftime);
 use Slim::Utils::Prefs;
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
+my $log;
 
 my %FACTORY_DEFAULTS = (
     source                   => 'lastmix',
@@ -28,6 +29,17 @@ my %RANGES = (
 
 sub init_preferences {
     $prefs->init({ %FACTORY_DEFAULTS });
+}
+
+sub init_logging {
+    return $log if $log;
+    return unless eval { require Slim::Utils::Log; 1 };
+    $log = Slim::Utils::Log->addLogCategory({
+        category => 'plugin.guidancelastfm',
+        defaultLevel => 'WARN',
+        description => 'PLUGIN_LASTFMGUIDANCE_NAME',
+    });
+    return $log;
 }
 
 sub guidance_provider_descriptor_v1 {
@@ -156,6 +168,7 @@ sub guidance_provider_native_spi_config_v1 {
         lastfm_track_influence => $effective->{lastfm_track_influence},
         lastfm_artist_mode => $effective->{lastfm_artist_mode},
         lastfm_artist_level => $effective->{lastfm_artist_level},
+        diagnostic_level => _diagnostic_level(),
     };
     if ($effective->{source} eq 'lastmix') {
         my $artifact = $trusted_context->{lastfm_relations_artifact};
@@ -244,6 +257,13 @@ sub guidance_provider_acquire_artifacts_v1 {
                 }],
                 edges => \@edges,
             };
+            _log_info(sprintf(
+                'Last.fm guidance prepared: requests=%d, cache hits=0, failures=%d, track relations=%d, artist relations=%d',
+                $requests,
+                $failures,
+                scalar(grep { ($_->{source}{kind} || '') eq 'recording' } @edges),
+                scalar(grep { ($_->{source}{kind} || '') eq 'artist' } @edges),
+            ));
             my $candidate_tracks = $trusted_context->{candidate_tracks};
             if (ref($candidate_tracks) eq 'ARRAY') {
                 $bundle->{edges} = _resolve_candidate_edges(
@@ -277,9 +297,15 @@ sub guidance_provider_acquire_artifacts_v1 {
         my $source = shift @requests;
         $requests++;
         if ($source->{kind} eq 'track') {
+            _log_info(sprintf('Last.fm: requesting similar tracks for "%s - %s"%s',
+                $source->{artist}, $source->{title},
+                $source->{recording_mbid} ? ' using recording MBID ' . $source->{recording_mbid} : ''));
             return Plugins::LastMix::LFM->getSimilarTracks(sub {
                 my $result = shift;
+                _log_debug('Last.fm response JSON: ' . _safe_json($result));
                 if (!ref($result) || ref($result) ne 'HASH' || $result->{error}) {
+                    _log_warning(sprintf('Last.fm request failed for similar tracks "%s - %s"; continuing without this result',
+                        $source->{artist}, $source->{title}));
                     $failures++; push @errors, 'LASTFM_TRACK_FAILED'; return $next->();
                 }
                 my $rank = 0;
@@ -293,14 +319,27 @@ sub guidance_provider_acquire_artifacts_v1 {
                         _recording_entity(undef, $track->{artist}{name}, $track->{name}, $track->{mbid}), 'endpoint_local', $rank, $track->{match},
                     );
                 }
+                _log_info(sprintf('Last.fm: got %d similar tracks for "%s - %s"',
+                    $rank, $source->{artist}, $source->{title}));
+                if (@$similar) {
+                    _log_debug(sprintf('Last.fm similar tracks for "%s - %s" (%d): %s',
+                        $source->{artist}, $source->{title}, $rank,
+                        join(', ', map { ($_->{artist}{name} || '') . ' - ' . ($_->{name} || '')
+                            . (defined $_->{match} ? ' (' . $_->{match} . ')' : '') } @$similar[0 .. ($#$similar < 24 ? $#$similar : 24)])));
+                }
                 $next->();
             }, {
                 artist => $source->{artist}, title => $source->{title}, mbid => $source->{recording_mbid},
             });
         }
+        _log_info(sprintf('Last.fm: requesting similar artists for "%s"%s',
+            $source->{artist}, $source->{artist_mbid} ? ' using artist MBID ' . $source->{artist_mbid} : ''));
         return Plugins::LastMix::LFM->getSimilarArtists(sub {
             my $result = shift;
+            _log_debug('Last.fm response JSON: ' . _safe_json($result));
             if (!ref($result) || ref($result) ne 'HASH' || $result->{error}) {
+                _log_warning(sprintf('Last.fm request failed for similar artists "%s"; continuing without this result',
+                    $source->{artist}));
                 $failures++; push @errors, 'LASTFM_ARTIST_FAILED'; return $next->();
             }
             my $rank = 0;
@@ -314,11 +353,108 @@ sub guidance_provider_acquire_artifacts_v1 {
                 push @edges, _edge('LastMix artist.getSimilar', $source_entity, $candidate, 'endpoint_local', $rank, $artist->{match});
                 push @edges, _edge('LastMix artist.getSimilar', $source_entity, $candidate, 'collection_fallback', $rank, $artist->{match});
             }
+            _log_info(sprintf('Last.fm: got %d similar artists for "%s"', $rank, $source->{artist}));
+            if (@$similar) {
+                _log_debug(sprintf('Last.fm similar artists for "%s" (%d): %s',
+                    $source->{artist}, $rank,
+                    join(', ', map { ($_->{name} || '')
+                        . (defined $_->{match} ? ' (' . $_->{match} . ')' : '') } @$similar[0 .. ($#$similar < 24 ? $#$similar : 24)])));
+            }
             $next->();
         }, { artist => $source->{artist}, mbid => $source->{artist_mbid} });
     };
     $next->();
 }
+
+sub guidance_provider_log_events_v1 {
+    my ($events, $context) = @_;
+    for my $event (@{ref($events) eq 'ARRAY' ? $events : []}) {
+        next unless ref($event) eq 'HASH';
+        my $message = _render_log_event($event);
+        next unless length $message;
+        my $level = $event->{level} || 'warning';
+        $level eq 'debug' ? _log_debug($message)
+            : $level eq 'info' ? _log_info($message)
+            : $level eq 'error' ? _log_error($message)
+            : _log_warning($message);
+    }
+    return 1;
+}
+
+sub _render_log_event {
+    my $event = shift;
+    my $name = $event->{event} || '';
+    my $source = ref($event->{source}) eq 'HASH' ? $event->{source} : {};
+    my $details = ref($event->{details}) eq 'HASH' ? $event->{details} : {};
+    my $operation = $event->{operation} || '';
+    my $label = $source->{label} || '';
+    my $count = 0 + ($event->{result_count} || 0);
+    if ($name eq 'lastfm_prepare_started') {
+        return sprintf('Last.fm guidance: source=%s, anchors=%d, track lookups=%d, artist lookups=%d',
+            $details->{source} || 'API Key', $details->{anchors} || 0,
+            $details->{track_lookups} || 0, $details->{artist_lookups} || 0);
+    }
+    if ($name eq 'lastfm_lookup_requested') {
+        my $identity = ($source->{identity_kind} || '') eq 'recording_mbid' ? 'recording MBID'
+            : ($source->{identity_kind} || '') eq 'artist_mbid' ? 'artist MBID'
+            : $source->{identity_kind} || 'MBID';
+        return sprintf('Last.fm: requesting similar %s for "%s"%s',
+            $operation eq 'artist.getSimilar' ? 'artists' : 'tracks', $label,
+            $source->{mbid} ? ' using ' . $identity . ' ' . $source->{mbid} : '');
+    }
+    if ($name eq 'lastfm_lookup_completed') {
+        return sprintf($event->{cache_state} && $event->{cache_state} eq 'hit'
+                ? 'Last.fm: returning cached similar %s for "%s" (%d results)'
+                : 'Last.fm: got %d similar %s for "%s"',
+            $event->{cache_state} && $event->{cache_state} eq 'hit'
+                ? ($operation eq 'artist.getSimilar' ? 'artists' : 'tracks')
+                : $count,
+            $event->{cache_state} && $event->{cache_state} eq 'hit'
+                ? $label : ($operation eq 'artist.getSimilar' ? 'artists' : 'tracks'),
+            $event->{cache_state} && $event->{cache_state} eq 'hit' ? $count : $label);
+    }
+    return 'Last.fm request JSON: ' . _safe_json($details->{request})
+        if $name eq 'lastfm_request_json';
+    return 'Last.fm response JSON: ' . _safe_json($details->{results})
+        if $name eq 'lastfm_response_json';
+    if ($name eq 'lastfm_lookup_failed') {
+        return sprintf('Last.fm request failed for similar %s "%s"; continuing without this result',
+            $operation eq 'artist.getSimilar' ? 'artists' : 'tracks', $label);
+    }
+    if ($name eq 'lastfm_prepare_completed') {
+        return sprintf('Last.fm guidance prepared: requests=%d, cache hits=%d, failures=%d, relations=%d',
+            $details->{requests} || 0, $details->{cache_hits} || 0,
+            $details->{failures} || 0, $details->{relations} || $count);
+    }
+    if ($name eq 'lastfm_scoring_completed') {
+        return sprintf('Last.fm scoring: candidates=%d, similar-track supported=%d, similar-artist supported=%d',
+            $details->{candidates} || 0, $details->{similar_track_supported} || 0,
+            $details->{similar_artist_supported} || 0);
+    }
+    return '';
+}
+
+sub _diagnostic_level {
+    my $logger = init_logging();
+    return 'warning' unless $logger;
+    return 'debug' if eval { $logger->is_debug };
+    return 'info' if eval { $logger->is_info };
+    return 'warning';
+}
+
+sub _safe_json {
+    my $value = shift;
+    return '{}' unless defined $value;
+    my $json = eval { encode_json($value) } || '{}';
+    $json =~ s/"(api_key|api_sig)"\s*:\s*"[^"]*"/"$1":"[redacted]"/gi;
+    $json =~ s/([?&](?:api_key|api_sig)=)[^&"\\]+/${1}[redacted]/gi;
+    return length($json) > 16384 ? substr($json, 0, 16384) . '...' : $json;
+}
+
+sub _log_debug { my $logger = init_logging(); $logger->debug($_[0]) if $logger && eval { $logger->is_debug }; }
+sub _log_info { my $logger = init_logging(); $logger->info($_[0]) if $logger && eval { $logger->is_info }; }
+sub _log_warning { my $logger = init_logging(); $logger->warn($_[0]) if $logger; }
+sub _log_error { my $logger = init_logging(); $logger->error($_[0]) if $logger; }
 
 sub _normalize {
     my $value = lc(shift || '');

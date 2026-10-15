@@ -122,6 +122,20 @@ network I/O. Cache misses, invalid responses, rate limits, timeouts, and
 offline operation degrade to partial or neutral guidance rather than blocking
 the Bliss result.
 
+## Logging
+
+The plugin registers the `plugin.guidancelastfm` log category. At information
+level it reports similar-track and similar-artist requests, result counts,
+cache use, tolerated failures, and preparation summaries. Debug level adds
+sanitized request/response JSON, returned track or artist relations, and
+candidate-scoring coverage. Fatal provider or host startup failures remain in
+the calling host's error log because no provider session exists to report them.
+
+LastMix acquisition logs directly through this category. API Key acquisition
+and native scoring return structured events through
+`guidance_log_event_v1`; the host transports them back to this plugin for the
+same provider-owned rendering. API keys and signatures are always redacted.
+
 ## Installation
 
 Install **Bliss Guidance: Last.fm** through
