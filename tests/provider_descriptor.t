@@ -52,7 +52,8 @@ is_deeply($controls{source}{option_labels}, {
     lastmix => 'GUIDANCE_LASTFM_SOURCE_LASTMIX',
     api_key => 'GUIDANCE_LASTFM_SOURCE_API_KEY',
 }, 'source enum publishes localized labels for generic host renderers');
-is($controls{source}{host_overridable}, 0, 'source selection remains provider-owned');
+is($controls{source}{host_overridable}, 1,
+    'hosts may override the acquisition source without receiving the provider-owned API key');
 is($controls{lastfm_track_influence}{factory_default}, 25, 'track guidance defaults to 25 percent');
 is($controls{lastfm_artist_mode}{factory_default}, 'target_share', 'artist strategy defaults to target share');
 is_deeply($controls{lastfm_artist_mode}{option_labels}, {
@@ -148,8 +149,8 @@ ok(
 
 is_deeply(
     Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {}),
-    {},
-    'a host policy cannot override the provider-owned source and obtain an API key',
+    { BLISS_GUIDANCE_LASTFM_API_KEY => 'test-direct-api-key' },
+    'a host source override selects direct acquisition while the provider supplies the API key privately',
 );
 my $status = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
 is($status->{reason}, 'native_binary_missing', 'missing native binary is reported before a host can start the provider');

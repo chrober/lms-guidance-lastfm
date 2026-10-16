@@ -144,5 +144,5 @@ enable the provider in a compatible host. Install and configure LastMix
 separately when you want to use the LastMix source.
 
 Configure the source and provider-owned guidance defaults on the provider's
-own settings page. Host documentation describes how to enable the provider and
-optionally override those defaults for a particular host or job.
+own settings page. Compatible hosts may save their own source and guidance
+overrides; the API key itself always remains private to this provider.

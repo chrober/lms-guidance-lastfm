@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Allow each compatible host to save its own LastMix/API Key source override
+  while keeping the API key itself private to this provider.
 - Relay structured native-provider warning, information, and debug events
   through the provider-owned `plugin.guidancelastfm` Lyrion log category.
 - Report Last.fm track and artist lookup requests, cache or fresh-result counts,
