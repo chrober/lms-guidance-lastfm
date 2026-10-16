@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 - 2026-10-16
 
 - Allow each compatible host to save its own LastMix/API Key source override
   while keeping the API key itself private to this provider.
