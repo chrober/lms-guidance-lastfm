@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.3 - 2026-10-17
+
+- Bundle native `bliss-guidance-lastfm` 0.1.3 with direct and artifact
+  acquisition plus the Last.fm track and artist policies used by the hosts.
+- Reject stale native binaries that do not publish the required acquisition
+  modes and channel-policy capabilities, instead of failing during a mix.
+- Keep the packaged native release in one tracked pin so future provider
+  releases cannot silently fall back to an obsolete binary.
+
 ## 0.2.2 - 2026-10-16
 
 - Allow each compatible host to save its own LastMix/API Key source override

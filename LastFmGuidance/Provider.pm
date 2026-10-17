@@ -6,7 +6,7 @@ use Config qw(%Config);
 use Digest::SHA qw(sha256_hex);
 use File::Basename qw(dirname);
 use File::Spec::Functions qw(catfile);
-use JSON::PP qw(encode_json);
+use JSON::PP qw(decode_json encode_json);
 use POSIX qw(strftime);
 use Slim::Utils::Prefs;
 
@@ -129,8 +129,7 @@ sub guidance_provider_status_v1 {
 
     my $version = _binary_version($program);
     return { available => 0, reason => 'native_binary_incompatible', program => $program }
-        unless $version =~ /"provider_id"\s*:\s*"lastfm-guidance"/
-            && $version =~ /"spi_version"\s*:\s*2/;
+        unless _binary_metadata_compatible($version);
 
     my $defaults = guidance_provider_defaults_v1();
     if ($defaults->{source} eq 'lastmix') {
@@ -143,6 +142,31 @@ sub guidance_provider_status_v1 {
     }
 
     return { available => 1, reason => '', program => $program, version => $version };
+}
+
+sub _binary_metadata_compatible {
+    my ($version) = @_;
+    my $metadata = eval { decode_json($version || '') };
+    return 0 unless ref($metadata) eq 'HASH';
+    return 0 unless ($metadata->{provider_id} || '') eq 'lastfm-guidance';
+    return 0 unless ($metadata->{spi_version} || 0) == 2;
+
+    my %acquisition = map { $_ => 1 }
+        grep { defined $_ && !ref($_) }
+        @{ref($metadata->{acquisition_modes}) eq 'ARRAY' ? $metadata->{acquisition_modes} : []};
+    return 0 unless $acquisition{artifact} && $acquisition{direct};
+
+    my $policies = $metadata->{channel_policies};
+    return 0 unless ref($policies) eq 'HASH';
+    my %track_policies = map { $_ => 1 }
+        grep { defined $_ && !ref($_) }
+        @{ref($policies->{lastfm_track}) eq 'ARRAY' ? $policies->{lastfm_track} : []};
+    my %artist_policies = map { $_ => 1 }
+        grep { defined $_ && !ref($_) }
+        @{ref($policies->{lastfm_artist}) eq 'ARRAY' ? $policies->{lastfm_artist} : []};
+    return 0 unless $track_policies{bounded_influence};
+    return 0 unless $artist_policies{bounded_influence} && $artist_policies{target_share};
+    return 1;
 }
 
 sub guidance_provider_process_environment_v1 {

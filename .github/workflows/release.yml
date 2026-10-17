@@ -8,9 +8,9 @@ on:
         required: false
         default: ""
       native_release:
-        description: "bliss-guidance-lastfm release tag"
-        required: true
-        default: "v0.1.2"
+        description: "bliss-guidance-lastfm release tag. Empty reads LastFmGuidance/Bin/NATIVE_RELEASE."
+        required: false
+        default: ""
       prerelease:
         description: "Mark the GitHub release as prerelease"
         type: boolean
@@ -49,6 +49,7 @@ jobs:
           perl tests/settings_contract.t
           perl tests/plugin_contract.t
           perl tests/installed_layout.t
+          perl tests/release_contract.t
       - name: Verify no native executable is committed
         run: |
           set -euo pipefail
@@ -86,7 +87,11 @@ jobs:
           fi
           install_version="$(python -c 'import xml.etree.ElementTree as ET; print(ET.parse("LastFmGuidance/install.xml").getroot().findtext("version"))')"
           test "$version" = "$install_version"
-          native_release="${NATIVE_RELEASE_INPUT:-v0.1.2}"
+          native_release="$NATIVE_RELEASE_INPUT"
+          if [ -z "$native_release" ]; then
+            native_release="$(tr -d '\r\n' < LastFmGuidance/Bin/NATIVE_RELEASE)"
+          fi
+          test -n "$native_release"
           tag="v$version"
           base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$tag"
           {

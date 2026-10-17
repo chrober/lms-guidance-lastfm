@@ -156,6 +156,38 @@ my $status = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
 is($status->{reason}, 'native_binary_missing', 'missing native binary is reported before a host can start the provider');
 
 {
+    my ($binary_fh, $binary_path) = tempfile();
+    close $binary_fh;
+    chmod 0755, $binary_path;
+    no warnings 'redefine';
+    local *Plugins::LastFmGuidance::Provider::_program_path = sub { return $binary_path };
+    local *Plugins::LastFmGuidance::Provider::_binary_version = sub {
+        return '{"schema_version":1,"program":"bliss-guidance-lastfm","version":"0.1.2","provider_id":"lastfm-guidance","spi_version":2}';
+    };
+    $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
+    $Slim::Utils::Prefs::PREFS->set(api_key => 'test-direct-api-key');
+    my $incompatible = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
+    is($incompatible->{reason}, 'native_binary_incompatible',
+        'a native provider without direct acquisition and policy capabilities is rejected');
+}
+
+{
+    my ($binary_fh, $binary_path) = tempfile();
+    close $binary_fh;
+    chmod 0755, $binary_path;
+    no warnings 'redefine';
+    local *Plugins::LastFmGuidance::Provider::_program_path = sub { return $binary_path };
+    local *Plugins::LastFmGuidance::Provider::_binary_version = sub {
+        return '{"schema_version":1,"program":"bliss-guidance-lastfm","version":"0.1.3","provider_id":"lastfm-guidance","spi_version":2,"acquisition_modes":["artifact","direct"],"channel_policies":{"lastfm_track":["bounded_influence"],"lastfm_artist":["bounded_influence","target_share"]}}';
+    };
+    $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
+    $Slim::Utils::Prefs::PREFS->set(api_key => 'test-direct-api-key');
+    my $compatible = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
+    ok($compatible->{available},
+        'a native provider declaring both acquisition modes and required channel policies is accepted');
+}
+
+{
     no warnings 'redefine';
     local *Plugins::LastFmGuidance::Provider::guidance_provider_status_v1 = sub {
         return { available => 1, program => '/trusted/bin/bliss-guidance-lastfm' };
