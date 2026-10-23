@@ -11,7 +11,7 @@ another plugin must discover, enable, and use it.
 Choose one provider-owned source on its settings page:
 
 - **LastMix** uses the installed LastMix plugin and remains unavailable until that plugin is installed.
-- **API Key** lets the native provider acquire and cache Last.fm relations
+- **API Key** lets the native provider acquire and persist Last.fm relations
   during SPI preparation. The key is passed only through the child-process
   environment; it never enters request JSON, artifacts, logs, or preview
   results.
@@ -19,7 +19,8 @@ Choose one provider-owned source on its settings page:
 With **LastMix**, the Lyrion provider obtains observations, the host resolves
 them to the frozen local candidate inventory, and the native provider consumes
 the resulting artifact. With **API Key**, the native provider queries only the
-frozen source anchors during `prepare`, persists a bounded TTL cache, and then
+frozen source anchors during `prepare`, persists complete observations in its
+SQLite graph, and then
 scores the host's Bliss-qualified candidate batches without network access.
 
 Hosts discover the provider automatically but default it to disabled. Their
@@ -51,7 +52,13 @@ flowchart LR
     Host -->|SPI prepare and score JSONL| Native["bliss-guidance-lastfm executable"]
     Artifact -.->|trusted, hash-bound input| Native
     Native -->|direct prepare only| LastFm["Last.fm API"]
-    Native <--> Cache["Provider TTL cache"]
+    Native <--> Graph["Provider SQLite graph: lastfm-guidance.sqlite"]
+    Perl --> Roots["Frozen library-artist roots JSON"]
+    Perl --> Request["Trusted graph request JSON"]
+    Roots -.-> Native
+    Request -.-> Native
+    Native --> Progress["Versioned graph progress JSONL"]
+    Progress -.-> Perl
     Native -->|bounded guidance and selection_trace_v1| Host
     Host -->|accepted result| Sinks["preview report / saved playlist / player queue"]
     Prefs -.->|API key in launch environment only| Native
@@ -67,8 +74,8 @@ The provider-owned files and streams are:
 - `LastFmGuidance/Provider.pm` publishes the descriptor and defaults, resolves
   host/job overrides, calls LastMix in LastMix mode, and writes the temporary
   `resolved-lastfm-evidence-v1` JSON artifact supplied by the host. In API-key
-  mode it instead supplies only non-secret cache and request limits plus the
-  launch-only environment variable.
+  mode it instead supplies only provider-owned graph paths and non-secret
+  request limits plus the launch-only environment variable.
 - `bliss-guidance-lastfm` reads that artifact and the bounded candidate/context
   messages from SPI JSONL on stdin, then returns bounded guidance,
   `selection_trace_v1`, and diagnostics on stdout. There is no separate
@@ -86,7 +93,7 @@ sequenceDiagram
     participant L as LastMix
     participant A as Last.fm API
     participant F as resolved-lastfm-evidence-v1 JSON
-    participant C as Direct-mode TTL cache
+    participant C as Provider SQLite graph
     participant N as Native provider
     participant S as Host result sinks
 
@@ -103,13 +110,13 @@ sequenceDiagram
         H->>N: prepare JSONL(options, anchors, artifact descriptor)
         N->>F: Read and verify hash-bound evidence
     else API Key source
-        P-->>H: Non-secret cache and request limits
+        P-->>H: Non-secret graph paths, policy, and request limits
         P-->>N: API key in child-process environment
         H->>N: prepare JSONL(options, frozen anchors)
-        N->>C: Read fresh cached relations
+        N->>C: Read fresh stored relations
         N->>A: Fetch missing or expired anchor relations
         A-->>N: Similar tracks and artists or tolerated failures
-        N->>C: Merge refreshed relations safely
+        N->>C: Commit refreshed relations transactionally
     end
     H->>N: score JSONL(anchors, bounded candidates)
     N-->>H: Guidance, selection_trace_v1, diagnostics
@@ -118,9 +125,64 @@ sequenceDiagram
 
 In **API Key** mode no LastMix artifact is created. Remote requests are limited
 to `prepare`; `score` is deterministic for the prepared session and performs no
-network I/O. Cache misses, invalid responses, rate limits, timeouts, and
+network I/O. Missing graph entries, invalid responses, rate limits, timeouts, and
 offline operation degrade to partial or neutral guidance rather than blocking
 the Bliss result.
+
+## Offline artist graph and manual update
+
+When **API Key** is selected, the settings page also owns the offline graph
+policy, storage scope, and the number of similar artists requested per source.
+It shows graph coverage and size and can start a full library-artist update.
+The update:
+
+- snapshots distinct local Lyrion contributors with their available Artist
+  MBIDs;
+- runs native synchronization asynchronously, with the API key present only in
+  the child environment;
+- reports start time, duration, current/total artists, request/cache/change
+  counts, rate-limit pauses, errors, and completion without reloading the
+  settings page; and
+- supports pause/resume, cancellation, compaction, and confirmed deletion.
+
+Normal **Save** remains explicit. Maintenance buttons never persist unrelated
+unsaved form edits. Graph controls are hidden for **LastMix**, and that path
+does not open, populate, migrate, compact, delete, or report the graph.
+
+The public settings intentionally expose **Online with cache** and **Offline
+preferred**. A strict native offline-only policy exists for controlled testing,
+but is not offered in the plugin UI until the applicable Last.fm terms permit
+shipping it as a supported user mode.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant W as Provider settings page
+    participant P as Last.fm provider plugin
+    participant D as Lyrion database
+    participant R as Roots and request JSON
+    participant N as Native maintenance command
+    participant A as Last.fm API
+    participant G as SQLite graph
+    participant J as Progress JSONL
+
+    U->>W: Update offline Last.fm library
+    W->>P: JSON-RPC start
+    P->>D: Stream distinct local contributors and Artist MBIDs
+    P->>R: Atomically write frozen roots and trusted request
+    P->>N: Start graph sync with API key in child environment
+    N->>G: Store current library membership
+    loop Missing or refresh-eligible roots
+        N->>G: Read observation and validators
+        N->>A: artist.getSimilar at bounded rate
+        A-->>N: Complete response or tolerated failure
+        N->>G: Commit observation and directed edges
+        N->>J: Append versioned progress
+        W->>P: JSON-RPC status
+        P->>J: Read latest complete event
+        P-->>W: Current progress and duration
+    end
+```
 
 ## Logging
 

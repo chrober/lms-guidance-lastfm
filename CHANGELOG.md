@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Replace the API-key source's whole-file JSON cache with a versioned,
+  MBID-first SQLite similarity graph with transactional read-through updates,
+  freshness validators, migration, configurable result limits and storage
+  scope.
+- Add an API-key-only background library-artist update with live status,
+  pause/resume, cancellation, compaction and confirmed deletion on the provider
+  settings page.
+- Keep LastMix artifact acquisition isolated from every graph path and reject
+  pre-graph native binaries only when API Key behavior is selected.
+
 ## 0.2.3 - 2026-10-17
 
 - Bundle native `bliss-guidance-lastfm` 0.1.3 with direct and artifact
