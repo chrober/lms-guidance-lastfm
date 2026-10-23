@@ -71,6 +71,12 @@ my $directory = tempdir(CLEANUP => 1);
 }
 
 require 'LastFmGuidance/GraphJobs.pm';
+{
+    no warnings qw(redefine once);
+    *Plugins::LastFmGuidance::GraphJobs::_read_graph_status = sub {
+        return { state => 'ready', artists => 1 };
+    };
+}
 
 local $ENV{BLISS_GUIDANCE_LASTFM_API_KEY};
 $Plugins::LastFmGuidance::Provider::AVAILABLE = 0;
@@ -126,5 +132,38 @@ is($failed_status->{error}, 'simulated native failure',
     'surfaces a native child failure through provider job status');
 is($failed_status->{duration} >= 0, 1,
     'retains a stable duration after the native process exits');
+
+$Proc::Background::WAIT = 0;
+$Proc::Background::ALIVE = 1;
+my $polling_started = Plugins::LastFmGuidance::GraphJobs::start_update();
+ok($polling_started->{ok}, 'starts a job for graph-status polling checks');
+{
+    no warnings qw(redefine once);
+    my $native_status_queries = 0;
+    local *Plugins::LastFmGuidance::GraphJobs::_read_graph_status = sub {
+        $native_status_queries++;
+        return { state => 'ready', artists => 1 };
+    };
+
+    is(
+        Plugins::LastFmGuidance::GraphJobs::graph_status()->{state},
+        'ready',
+        'an explicit graph-status refresh reads the native store status',
+    );
+    is($native_status_queries, 1, 'the explicit refresh invokes the native status command once');
+
+    Plugins::LastFmGuidance::GraphJobs::perform_action('status');
+    Plugins::LastFmGuidance::GraphJobs::perform_action('status');
+    is($native_status_queries, 1,
+        'live UI polling reuses graph metadata instead of spawning a native status process');
+
+    $Proc::Background::ALIVE = 0;
+    Plugins::LastFmGuidance::GraphJobs::perform_action('status');
+    is($native_status_queries, 2,
+        'job completion refreshes persistent graph metadata exactly once');
+    Plugins::LastFmGuidance::GraphJobs::perform_action('status');
+    is($native_status_queries, 2,
+        'idle UI polling keeps the completed graph metadata cached');
+}
 
 done_testing;

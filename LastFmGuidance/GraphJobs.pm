@@ -13,6 +13,7 @@ my $ended_at = 0;
 my $last_error = '';
 my $paused = 0;
 my $operation = '';
+my $graph_status_cache;
 
 sub start_update {
     return { ok => 0, error => 'already_running' } if $process && $process->alive;
@@ -215,6 +216,7 @@ sub status {
             ));
         }
         undef $process;
+        graph_status();
     }
     return {
         running => $running,
@@ -235,11 +237,17 @@ sub perform_action {
     return resume() if $action eq 'resume';
     return start_compact() if $action eq 'compact';
     return delete_graph() if $action eq 'delete';
-    return { ok => 1, status => status(), graph => graph_status() } if $action eq 'status';
+    return { ok => 1, status => status(), graph => $graph_status_cache || {} }
+        if $action eq 'status';
     return { ok => 0, error => 'bad_action', status => status() };
 }
 
 sub graph_status {
+    $graph_status_cache = _read_graph_status();
+    return $graph_status_cache;
+}
+
+sub _read_graph_status {
     my $defaults = Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1();
     return { state => 'unavailable' }
         unless ($defaults->{source} || '') eq 'api_key';

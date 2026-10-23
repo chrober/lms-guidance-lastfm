@@ -45,11 +45,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run provider contract tests
         run: |
-          perl tests/provider_descriptor.t
-          perl tests/settings_contract.t
-          perl tests/plugin_contract.t
-          perl tests/installed_layout.t
-          perl tests/release_contract.t
+          for test_file in tests/*.t; do
+            perl "$test_file"
+          done
       - name: Verify no native executable is committed
         run: |
           set -euo pipefail
