@@ -5,12 +5,15 @@ use warnings;
 use Config qw(%Config);
 use Digest::SHA qw(sha256_hex);
 use File::Basename qw(dirname);
+use File::Path qw(make_path);
 use File::Spec::Functions qw(catfile);
+use File::Spec ();
 use JSON::PP qw(decode_json encode_json);
 use POSIX qw(strftime);
 use Slim::Utils::Prefs;
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
+my $serverprefs = Slim::Utils::Prefs::preferences('server');
 my $log;
 
 my %FACTORY_DEFAULTS = (
@@ -19,6 +22,9 @@ my %FACTORY_DEFAULTS = (
     lastfm_track_influence   => 25,
     lastfm_artist_mode       => 'target_share',
     lastfm_artist_level      => 75,
+    retrieval_policy        => 'online_with_cache',
+    storage_scope           => 'all_returned_artists',
+    artist_result_limit     => 25,
     settings_revision        => 1,
 );
 
@@ -119,29 +125,52 @@ sub guidance_provider_defaults_v1 {
         $defaults{$key} = $value;
     }
     $defaults{settings_revision} = int($prefs->get('settings_revision') || $FACTORY_DEFAULTS{settings_revision});
+    $defaults{retrieval_policy} = _retrieval_policy($prefs->get('retrieval_policy'));
+    $defaults{storage_scope} = _storage_scope($prefs->get('storage_scope'));
+    my $artist_result_limit = int($prefs->get('artist_result_limit') || 25);
+    $defaults{artist_result_limit} = $artist_result_limit =~ /^(?:25|50|100)$/
+        ? $artist_result_limit : 25;
     return \%defaults;
 }
 
 sub guidance_provider_status_v1 {
+    my $defaults = guidance_provider_defaults_v1();
+    return _provider_status_for_source($defaults->{source});
+}
+
+sub _provider_status_for_source {
+    my ($source) = @_;
     my $program = _program_path();
     return { available => 0, reason => 'native_binary_missing', program => '' }
-        unless -x $program;
+        unless -f $program && (-x $program || $^O =~ /^(?:MSWin32|msys)$/);
 
     my $version = _binary_version($program);
     return { available => 0, reason => 'native_binary_incompatible', program => $program }
         unless _binary_metadata_compatible($version);
 
-    my $defaults = guidance_provider_defaults_v1();
-    if ($defaults->{source} eq 'lastmix') {
+    if (($source || '') eq 'lastmix') {
         return { available => 0, reason => 'lastmix_unavailable', program => $program }
             unless _lastmix_available();
     }
     else {
+        return { available => 0, reason => 'native_binary_incompatible', program => $program }
+            unless _binary_graph_compatible($version);
         return { available => 0, reason => 'api_key_missing', program => $program }
             unless _api_key();
     }
 
     return { available => 1, reason => '', program => $program, version => $version };
+}
+
+sub _binary_graph_compatible {
+    my ($version) = @_;
+    my $metadata = eval { decode_json($version || '') };
+    return 0 unless ref($metadata) eq 'HASH';
+    return 0 unless ($metadata->{offline_graph_schema_version} || 0) == 1;
+    my %commands = map { $_ => 1 }
+        grep { defined $_ && !ref($_) }
+        @{ref($metadata->{graph_commands}) eq 'ARRAY' ? $metadata->{graph_commands} : []};
+    return $commands{status} && $commands{sync} && $commands{compact} && $commands{delete} ? 1 : 0;
 }
 
 sub _binary_metadata_compatible {
@@ -171,7 +200,8 @@ sub _binary_metadata_compatible {
 
 sub guidance_provider_process_environment_v1 {
     my ($resolved_policy, $trusted_context) = @_;
-    my $effective = _effective_policy($resolved_policy || {}, guidance_provider_defaults_v1());
+    my $defaults = guidance_provider_defaults_v1();
+    my $effective = _effective_policy($resolved_policy || {}, $defaults);
     return {} unless $effective->{source} eq 'api_key';
     my $api_key = _api_key();
     return {} unless length $api_key;
@@ -181,11 +211,12 @@ sub guidance_provider_process_environment_v1 {
 sub guidance_provider_native_spi_config_v1 {
     my ($resolved_policy, $trusted_context) = @_;
     $trusted_context ||= {};
-    my $status = guidance_provider_status_v1();
+    my $defaults = guidance_provider_defaults_v1();
+    my $effective = _effective_policy($resolved_policy || {}, $defaults);
+    my $status = _provider_status_for_source($effective->{source});
     die 'Last.fm guidance provider is unavailable: ' . ($status->{reason} || 'unknown')
         unless $status->{available};
 
-    my $effective = _effective_policy($resolved_policy || {}, guidance_provider_defaults_v1());
     my @artifacts;
     my $options = {
         acquisition_mode => $effective->{source} eq 'api_key' ? 'direct' : 'artifact',
@@ -204,11 +235,13 @@ sub guidance_provider_native_spi_config_v1 {
         };
     }
     else {
-        for my $key (qw(cache_path cache_ttl_seconds request_deadline_ms max_concurrent_requests)) {
-            die "Last.fm direct mode requires trusted $key"
-                unless exists $trusted_context->{$key};
-            $options->{$key} = $trusted_context->{$key};
-        }
+        $options->{store_path} = _graph_store_path();
+        $options->{legacy_cache_path} = _legacy_cache_path();
+        $options->{retrieval_policy} = $defaults->{retrieval_policy};
+        $options->{storage_scope} = $defaults->{storage_scope};
+        $options->{artist_result_limit} = 0 + $defaults->{artist_result_limit};
+        $options->{request_deadline_ms} = 5000;
+        $options->{max_concurrent_requests} = 2;
         if (defined $trusted_context->{api_endpoint} && length $trusted_context->{api_endpoint}) {
             $options->{api_endpoint} = $trusted_context->{api_endpoint};
         }
@@ -606,6 +639,34 @@ sub _artist_mode {
     my $value = shift;
     return $value && $value =~ /^(?:target_share|bounded_influence)$/ ? $value : $FACTORY_DEFAULTS{lastfm_artist_mode};
 }
+
+sub _retrieval_policy {
+    my $value = shift;
+    return $value && $value =~ /^(?:online_with_cache|offline_preferred|offline_only)$/
+        ? $value : $FACTORY_DEFAULTS{retrieval_policy};
+}
+
+sub _storage_scope {
+    my $value = shift;
+    return $value && $value =~ /^(?:all_returned_artists|local_artists_only)$/
+        ? $value : $FACTORY_DEFAULTS{storage_scope};
+}
+
+sub _cache_root {
+    my $root = $serverprefs->get('cachedir')
+        || eval { Slim::Utils::Prefs::dir() }
+        || File::Spec->tmpdir();
+    my $path = catfile($root, 'LastFmGuidance');
+    make_path($path) unless -d $path;
+    return $path;
+}
+
+sub _graph_store_path { return catfile(_cache_root(), 'lastfm-guidance.sqlite'); }
+sub _legacy_cache_path { return catfile(_cache_root(), 'lastfm-guidance-v1.json'); }
+sub _root_snapshot_path { return catfile(_cache_root(), 'library-artist-roots-v1.json'); }
+sub _graph_request_path { return catfile(_cache_root(), 'graph-request-v1.json'); }
+sub _graph_progress_path { return catfile(_cache_root(), 'graph-progress-v1.jsonl'); }
+sub _graph_cancel_path { return catfile(_cache_root(), 'graph-cancel'); }
 
 sub _api_key {
     init_preferences();

@@ -70,6 +70,10 @@ my $defaults = Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1(
 is($defaults->{source}, 'lastmix', 'LastMix is the provider default source');
 is($defaults->{lastfm_track_influence}, 25, 'track default is available before settings are saved');
 is($defaults->{lastfm_artist_level}, 75, 'artist default is available before settings are saved');
+is($defaults->{retrieval_policy}, 'online_with_cache', 'API-key graph defaults to online read-through');
+is($defaults->{storage_scope}, 'all_returned_artists', 'API-key graph stores all returned artists by default');
+is($defaults->{artist_result_limit}, 25, 'API-key graph defaults to 25 similar artists');
+ok(!exists $controls{retrieval_policy}, 'graph retrieval policy is provider-owned and not host-overridable');
 
 $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
 $Slim::Utils::Prefs::PREFS->set(api_key => 'test-direct-api-key');
@@ -178,18 +182,33 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
     no warnings 'redefine';
     local *Plugins::LastFmGuidance::Provider::_program_path = sub { return $binary_path };
     local *Plugins::LastFmGuidance::Provider::_binary_version = sub {
-        return '{"schema_version":1,"program":"bliss-guidance-lastfm","version":"0.1.3","provider_id":"lastfm-guidance","spi_version":2,"acquisition_modes":["artifact","direct"],"channel_policies":{"lastfm_track":["bounded_influence"],"lastfm_artist":["bounded_influence","target_share"]}}';
+        return '{"schema_version":1,"program":"bliss-guidance-lastfm","version":"0.1.3","provider_id":"lastfm-guidance","spi_version":2,"acquisition_modes":["artifact","direct"],"offline_graph_schema_version":1,"graph_commands":["status","sync","compact","delete"],"channel_policies":{"lastfm_track":["bounded_influence"],"lastfm_artist":["bounded_influence","target_share"]}}';
     };
     $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
     $Slim::Utils::Prefs::PREFS->set(api_key => 'test-direct-api-key');
     my $compatible = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
     ok($compatible->{available},
-        'a native provider declaring both acquisition modes and required channel policies is accepted');
+        'an API-key provider declaring acquisition, policy, and offline-graph capabilities is accepted');
+}
+
+{
+    my ($binary_fh, $binary_path) = tempfile();
+    close $binary_fh;
+    chmod 0755, $binary_path;
+    no warnings 'redefine';
+    local *Plugins::LastFmGuidance::Provider::_program_path = sub { return $binary_path };
+    local *Plugins::LastFmGuidance::Provider::_binary_version = sub {
+        return '{"schema_version":1,"program":"bliss-guidance-lastfm","version":"0.1.3","provider_id":"lastfm-guidance","spi_version":2,"acquisition_modes":["artifact","direct"],"channel_policies":{"lastfm_track":["bounded_influence"],"lastfm_artist":["bounded_influence","target_share"]}}';
+    };
+    $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
+    my $incompatible = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
+    is($incompatible->{reason}, 'native_binary_incompatible',
+        'API-key mode rejects a pre-graph native provider');
 }
 
 {
     no warnings 'redefine';
-    local *Plugins::LastFmGuidance::Provider::guidance_provider_status_v1 = sub {
+    local *Plugins::LastFmGuidance::Provider::_provider_status_for_source = sub {
         return { available => 1, program => '/trusted/bin/bliss-guidance-lastfm' };
     };
     $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
@@ -201,18 +220,16 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
             lastfm_artist_mode => 'bounded_influence',
             lastfm_artist_level => 75,
         },
-        {
-            cache_path => '/trusted/cache/lastfm-guidance.json',
-            cache_ttl_seconds => 3600,
-            request_deadline_ms => 5000,
-            max_concurrent_requests => 2,
-        },
+        {},
     );
     is_deeply($config->{artifacts}, [], 'direct API mode does not require a LastMix artifact');
     is_deeply($config->{options}, {
         acquisition_mode => 'direct',
-        cache_path => '/trusted/cache/lastfm-guidance.json',
-        cache_ttl_seconds => 3600,
+        store_path => Plugins::LastFmGuidance::Provider::_graph_store_path(),
+        legacy_cache_path => Plugins::LastFmGuidance::Provider::_legacy_cache_path(),
+        retrieval_policy => 'online_with_cache',
+        artist_result_limit => 25,
+        storage_scope => 'all_returned_artists',
         request_deadline_ms => 5000,
         max_concurrent_requests => 2,
         lastfm_track_influence => 25,
