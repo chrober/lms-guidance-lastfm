@@ -69,3 +69,84 @@ GUIDANCE_LASTFM_ARTIST_LEVEL
 
 GUIDANCE_LASTFM_ARTIST_LEVEL_DESC
 	EN	The target share in Target share mode, or the maximum bounded boost in Per-candidate boost mode. Zero disables similar-artist guidance.
+
+PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH
+	EN	Offline Last.fm artist graph
+
+PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH_DESC
+	EN	API Key mode can keep similar-artist results in a provider-owned SQLite graph. Use the update action to scan all artists in the current local Lyrion library. The job runs in the background and can be cancelled.
+
+PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY
+	EN	Retrieval policy
+
+PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY_DESC
+	EN	Online with cache revalidates stale data before use. Offline preferred uses stored data immediately and refreshes missing or stale entries when online access is available.
+
+PLUGIN_LASTFMGUIDANCE_POLICY_ONLINE
+	EN	Online with cache
+
+PLUGIN_LASTFMGUIDANCE_POLICY_OFFLINE_PREFERRED
+	EN	Offline preferred
+
+PLUGIN_LASTFMGUIDANCE_STORAGE_SCOPE
+	EN	Stored artist scope
+
+PLUGIN_LASTFMGUIDANCE_STORAGE_SCOPE_DESC
+	EN	Store every artist returned by Last.fm, or retain only artists found in the current Lyrion library.
+
+PLUGIN_LASTFMGUIDANCE_SCOPE_ALL
+	EN	Store all returned artists
+
+PLUGIN_LASTFMGUIDANCE_SCOPE_LOCAL
+	EN	Store only artists in the Lyrion library
+
+PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT
+	EN	Similar artists stored per source
+
+PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC
+	EN	Request and persist up to 25, 50, or 100 similar artists for each source artist. Last.fm may return fewer results.
+
+PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS
+	EN	Library update status
+
+PLUGIN_LASTFMGUIDANCE_GRAPH_STATE
+	EN	State: %s; artists: %s; updated roots: %s; database bytes: %s
+
+PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS
+	EN	State: %1; artists: %2; updated roots: %3; database bytes: %4; library coverage: %5/%6; external artists: %7; artist edges: %8; reciprocal pairs: %9
+
+PLUGIN_LASTFMGUIDANCE_JOB_START
+	EN	Start:
+
+PLUGIN_LASTFMGUIDANCE_JOB_DURATION
+	EN	Duration:
+
+PLUGIN_LASTFMGUIDANCE_JOB_STATUS
+	EN	Status:
+
+PLUGIN_LASTFMGUIDANCE_JOB_PROGRESS
+	EN	Progress:
+
+PLUGIN_LASTFMGUIDANCE_JOB_COUNTS
+	EN	Requests / cached / changed:
+
+PLUGIN_LASTFMGUIDANCE_START_UPDATE
+	EN	Update offline Last.fm library
+
+PLUGIN_LASTFMGUIDANCE_PAUSE_UPDATE
+	EN	Pause update
+
+PLUGIN_LASTFMGUIDANCE_RESUME_UPDATE
+	EN	Resume update
+
+PLUGIN_LASTFMGUIDANCE_CANCEL_UPDATE
+	EN	Cancel update
+
+PLUGIN_LASTFMGUIDANCE_COMPACT
+	EN	Compact/rebuild stored data
+
+PLUGIN_LASTFMGUIDANCE_DELETE
+	EN	Delete offline data
+
+PLUGIN_LASTFMGUIDANCE_DELETE_CONFIRM
+	EN	Delete the offline Last.fm SQLite graph and migrated legacy cache? The API key and guidance defaults will be kept.

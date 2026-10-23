@@ -29,6 +29,11 @@ require 'LastFmGuidance/Provider.pm';
 $INC{'Plugins/LastFmGuidance/Provider.pm'} = $INC{'LastFmGuidance/Provider.pm'};
 require 'LastFmGuidance/Settings.pm';
 
+my $render_params = {};
+Plugins::LastFmGuidance::Settings->beforeRender($render_params);
+ok(!exists $INC{'Plugins/LastFmGuidance/GraphJobs.pm'},
+    'rendering LastMix settings does not load or inspect the offline graph job');
+
 is(Plugins::LastFmGuidance::Settings->name, 'PLUGIN_LASTFMGUIDANCE_NAME', 'provider has its own settings title');
 is(Plugins::LastFmGuidance::Settings->page,
     'plugins/LastFmGuidance/settings/lastfmguidance.html',
@@ -41,5 +46,14 @@ like($template_source, qr/settings\/footer\.html/, 'settings template includes t
 like($template_source, qr/pref_source/, 'settings page renders the LastMix/API Key source selector');
 like($template_source, qr/pref_api_key/, 'settings page contains the conditional API key field');
 like($template_source, qr/lastfm-guidance-source/, 'settings page identifies the source selector for conditional visibility');
+like($template_source, qr/pref_retrieval_policy/, 'settings page owns the API-key retrieval policy');
+like($template_source, qr/pref_storage_scope/, 'settings page owns graph storage scope');
+like($template_source, qr/pref_artist_result_limit/, 'settings page owns the stored similar-artist limit');
+like($template_source, qr/lastfm-guidance-start/, 'settings page exposes an explicit full graph update action');
+like($template_source, qr/lastfmguidance.*graph.*action/s,
+    'settings page controls the maintenance job through the plugin JSON-RPC command');
+like($template_source, qr/setInterval\(refreshGraphStatus/,
+    'settings page polls the background job without reloading or implicitly saving settings');
+like($template_source, qr/lastfm-guidance-graph-section/, 'graph controls have API-key-only conditional visibility');
 
 done_testing;

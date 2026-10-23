@@ -30,6 +30,56 @@
         [% END %]
     </div>
 
+    <div id="lastfm-guidance-graph-section">
+        <h3>[% "PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH" | string %]</h3>
+        <p>[% "PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH_DESC" | string %]</p>
+
+        [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY" desc="PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY_DESC" %]
+            <select class="stdedit" name="pref_retrieval_policy" id="lastfm-guidance-retrieval-policy">
+                <option value="online_with_cache" [% IF prefs.retrieval_policy == 'online_with_cache' %]selected[% END %]>[% "PLUGIN_LASTFMGUIDANCE_POLICY_ONLINE" | string %]</option>
+                <option value="offline_preferred" [% IF prefs.retrieval_policy == 'offline_preferred' %]selected[% END %]>[% "PLUGIN_LASTFMGUIDANCE_POLICY_OFFLINE_PREFERRED" | string %]</option>
+            </select>
+        [% END %]
+
+        [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_STORAGE_SCOPE" desc="PLUGIN_LASTFMGUIDANCE_STORAGE_SCOPE_DESC" %]
+            <select class="stdedit" name="pref_storage_scope" id="lastfm-guidance-storage-scope">
+                <option value="all_returned_artists" [% IF prefs.storage_scope == 'all_returned_artists' %]selected[% END %]>[% "PLUGIN_LASTFMGUIDANCE_SCOPE_ALL" | string %]</option>
+                <option value="local_artists_only" [% IF prefs.storage_scope == 'local_artists_only' %]selected[% END %]>[% "PLUGIN_LASTFMGUIDANCE_SCOPE_LOCAL" | string %]</option>
+            </select>
+        [% END %]
+
+        [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT" desc="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC" %]
+            <select class="stdedit" name="pref_artist_result_limit" id="lastfm-guidance-artist-result-limit">
+                <option value="25" [% IF prefs.artist_result_limit == 25 %]selected[% END %]>25</option>
+                <option value="50" [% IF prefs.artist_result_limit == 50 %]selected[% END %]>50</option>
+                <option value="100" [% IF prefs.artist_result_limit == 100 %]selected[% END %]>100</option>
+            </select>
+        [% END %]
+
+        <div class="settingGroup">
+            <div class="prefHead">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS" | string %]</div>
+            <div class="prefs">
+                <p id="lastfm-guidance-graph-summary">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE" | string(graph_status.state || 'missing', graph_status.artists || 0, graph_status.artist_observations || 0, graph_status.database_bytes || 0) %]</p>
+                <div id="lastfm-guidance-job-status" [% UNLESS graph_job.running || graph_job.progress.phase %]style="display:none"[% END %]>
+                    <table>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_START" | string %]</td><td id="lastfm-guidance-job-start">[% graph_job.started_at || 0 %]</td></tr>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_DURATION" | string %]</td><td id="lastfm-guidance-job-duration">[% graph_job.duration || 0 %]s</td></tr>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_STATUS" | string %]</td><td id="lastfm-guidance-job-message">[% graph_job.progress.message %]</td></tr>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_PROGRESS" | string %]</td><td id="lastfm-guidance-job-progress">[% graph_job.progress.current || 0 %] / [% graph_job.progress.total || 0 %]</td></tr>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_COUNTS" | string %]</td><td id="lastfm-guidance-job-counts">[% graph_job.progress.requests || 0 %] / [% graph_job.progress.cached || 0 %] / [% graph_job.progress.changed || 0 %]</td></tr>
+                    </table>
+                    <p id="lastfm-guidance-job-error" style="color:#c9302c"></p>
+                </div>
+                <button class="inputbutton" type="button" id="lastfm-guidance-start">[% 'PLUGIN_LASTFMGUIDANCE_START_UPDATE' | string %]</button>
+                <button class="inputbutton" type="button" id="lastfm-guidance-pause" style="display:none">[% 'PLUGIN_LASTFMGUIDANCE_PAUSE_UPDATE' | string %]</button>
+                <button class="inputbutton" type="button" id="lastfm-guidance-resume" style="display:none">[% 'PLUGIN_LASTFMGUIDANCE_RESUME_UPDATE' | string %]</button>
+                <button class="inputbutton" type="button" id="lastfm-guidance-cancel" style="display:none">[% 'PLUGIN_LASTFMGUIDANCE_CANCEL_UPDATE' | string %]</button>
+                <button class="inputbutton" type="button" id="lastfm-guidance-compact">[% 'PLUGIN_LASTFMGUIDANCE_COMPACT' | string %]</button>
+                <button class="inputbutton" type="button" id="lastfm-guidance-delete">[% 'PLUGIN_LASTFMGUIDANCE_DELETE' | string %]</button>
+            </div>
+        </div>
+    </div>
+
     [% WRAPPER settingGroup title="GUIDANCE_LASTFM_TRACK_INFLUENCE" desc="GUIDANCE_LASTFM_TRACK_INFLUENCE_DESC" %]
         <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_track_influence" id="lastfm_track_influence" value="[% prefs.lastfm_track_influence %]" size="5">
     [% END %]
@@ -50,12 +100,115 @@
 (function () {
     var source = document.getElementById('lastfm-guidance-source');
     var apiKey = document.getElementById('lastfm-guidance-api-key-group');
-    if (!source || !apiKey) return;
+    var graph = document.getElementById('lastfm-guidance-graph-section');
+    if (!source || !apiKey || !graph) return;
     function refresh() {
         apiKey.style.display = source.value === 'api_key' ? '' : 'none';
+        graph.style.display = source.value === 'api_key' ? '' : 'none';
+        if (source.value === 'api_key' && !graphInterval) {
+            refreshGraphStatus();
+        } else if (source.value !== 'api_key' && graphInterval) {
+            clearInterval(graphInterval);
+            graphInterval = undefined;
+        }
     }
     source.addEventListener('change', refresh);
     refresh();
+
+    var graphInterval;
+    var graphRunning = false;
+    function graphElement(id) { return document.getElementById(id); }
+    function setGraphVisible(id, visible) {
+        var element = graphElement(id);
+        if (element) element.style.display = visible ? '' : 'none';
+    }
+    function formatDuration(seconds) {
+        seconds = parseInt(seconds || 0, 10);
+        return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
+            .map(function (value) { return String(value).padStart(2, '0'); }).join(':');
+    }
+    function formatStart(epoch) {
+        return parseInt(epoch || 0, 10) > 0 ? new Date(parseInt(epoch, 10) * 1000).toLocaleString() : '';
+    }
+    async function graphAction(action) {
+        var message = JSON.stringify({
+            id: 1,
+            method: 'slim.request',
+            params: ['', ['lastfmguidance', 'graph', action]]
+        });
+        var response = await fetch('[% jsonrpc_url %]', {
+            method: 'post',
+            headers: {'Content-Type': 'application/json', 'Origin': window.location.hostname},
+            body: message
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+    }
+    function renderGraphStatus(result) {
+        if (!result) return;
+        graphRunning = parseInt(result.running || 0, 10) === 1;
+        var paused = parseInt(result.paused || 0, 10) === 1;
+        var hasJob = graphRunning || paused || parseInt(result.start || 0, 10) > 0;
+        setGraphVisible('lastfm-guidance-job-status', hasJob);
+        setGraphVisible('lastfm-guidance-start', !graphRunning && !paused);
+        setGraphVisible('lastfm-guidance-pause', graphRunning);
+        setGraphVisible('lastfm-guidance-resume', !graphRunning && paused);
+        setGraphVisible('lastfm-guidance-cancel', graphRunning);
+        if (graphElement('lastfm-guidance-compact')) graphElement('lastfm-guidance-compact').disabled = graphRunning;
+        if (graphElement('lastfm-guidance-delete')) graphElement('lastfm-guidance-delete').disabled = graphRunning;
+        if (graphElement('lastfm-guidance-job-start')) graphElement('lastfm-guidance-job-start').textContent = formatStart(result.start);
+        if (graphElement('lastfm-guidance-job-duration')) graphElement('lastfm-guidance-job-duration').textContent = formatDuration(result.duration);
+        if (graphElement('lastfm-guidance-job-message')) graphElement('lastfm-guidance-job-message').textContent = result.message || '';
+        if (graphElement('lastfm-guidance-job-progress')) graphElement('lastfm-guidance-job-progress').textContent = (result.current || 0) + ' / ' + (result.total || 0);
+        if (graphElement('lastfm-guidance-job-counts')) graphElement('lastfm-guidance-job-counts').textContent = (result.requests || 0) + ' / ' + (result.cached || 0) + ' / ' + (result.changed || 0);
+        if (graphElement('lastfm-guidance-job-error')) graphElement('lastfm-guidance-job-error').textContent = result.error || '';
+        if (result.graph_state && graphElement('lastfm-guidance-graph-summary')) {
+            graphElement('lastfm-guidance-graph-summary').textContent = '[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS" | string %]'
+                .replace('%1', result.graph_state).replace('%2', result.graph_artists || 0)
+                .replace('%3', result.graph_observations || 0).replace('%4', result.graph_bytes || 0)
+                .replace('%5', result.graph_covered_artists || 0).replace('%6', result.graph_library_artists || 0)
+                .replace('%7', result.graph_external_artists || 0).replace('%8', result.graph_artist_edges || 0)
+                .replace('%9', result.graph_reciprocal_pairs || 0);
+        }
+        clearInterval(graphInterval);
+        graphInterval = setInterval(refreshGraphStatus, graphRunning ? 1000 : 5000);
+    }
+    function refreshGraphStatus() {
+        graphAction('status').then(function (response) {
+            renderGraphStatus(response && response.result);
+        }).catch(function (error) {
+            if (graphElement('lastfm-guidance-job-error')) graphElement('lastfm-guidance-job-error').textContent = error.message;
+        });
+    }
+    function bindGraphAction(id, action) {
+        var button = graphElement(id);
+        if (!button) return;
+        button.addEventListener('click', function () {
+            button.disabled = true;
+            graphAction(action).then(function (response) {
+                renderGraphStatus(response && response.result);
+            }).catch(function (error) {
+                if (graphElement('lastfm-guidance-job-error')) graphElement('lastfm-guidance-job-error').textContent = error.message;
+            }).finally(function () { button.disabled = false; });
+        });
+    }
+    bindGraphAction('lastfm-guidance-start', 'start');
+    bindGraphAction('lastfm-guidance-pause', 'pause');
+    bindGraphAction('lastfm-guidance-resume', 'resume');
+    bindGraphAction('lastfm-guidance-cancel', 'cancel');
+    bindGraphAction('lastfm-guidance-compact', 'compact');
+    var deleteButton = graphElement('lastfm-guidance-delete');
+    if (deleteButton) {
+        deleteButton.addEventListener('click', function () {
+            if (!window.confirm('[% "PLUGIN_LASTFMGUIDANCE_DELETE_CONFIRM" | string %]')) return;
+            deleteButton.disabled = true;
+            graphAction('delete').then(function (response) {
+                renderGraphStatus(response && response.result);
+            }).catch(function (error) {
+                if (graphElement('lastfm-guidance-job-error')) graphElement('lastfm-guidance-job-error').textContent = error.message;
+            }).finally(function () { deleteButton.disabled = false; });
+        });
+    }
 }());
 </script>
 

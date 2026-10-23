@@ -7,7 +7,7 @@ use Slim::Utils::Prefs;
 use Plugins::LastFmGuidance::Provider;
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
-my @PREFS = qw(source api_key lastfm_track_influence lastfm_artist_mode lastfm_artist_level);
+my @PREFS = qw(source api_key lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit);
 
 sub name { return 'PLUGIN_LASTFMGUIDANCE_NAME'; }
 sub page { return 'plugins/LastFmGuidance/settings/lastfmguidance.html'; }
@@ -19,11 +19,21 @@ sub beforeRender {
     $params->{provider_defaults} = Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1();
     $params->{provider_status} = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
     $params->{lastmix_available} = Plugins::LastFmGuidance::Provider::_lastmix_available() ? 1 : 0;
+    if (($params->{provider_defaults}{source} || '') eq 'api_key') {
+        require Plugins::LastFmGuidance::GraphJobs;
+        $params->{graph_job} = Plugins::LastFmGuidance::GraphJobs::status();
+        $params->{graph_status} = Plugins::LastFmGuidance::GraphJobs::graph_status();
+    }
+    else {
+        $params->{graph_job} = {};
+        $params->{graph_status} = {};
+    }
 }
 
 sub handler {
     my ($class, $client, $params) = @_;
     Plugins::LastFmGuidance::Provider::init_preferences();
+    return $class->SUPER::handler($client, $params) unless $params->{saveSettings};
     my $changed = 0;
     for my $key (@PREFS) {
         my $param = 'pref_' . $key;
@@ -35,6 +45,15 @@ sub handler {
         }
         elsif ($key eq 'lastfm_artist_mode') {
             $value = Plugins::LastFmGuidance::Provider::_artist_mode($value);
+        }
+        elsif ($key eq 'retrieval_policy') {
+            $value = Plugins::LastFmGuidance::Provider::_retrieval_policy($value);
+        }
+        elsif ($key eq 'storage_scope') {
+            $value = Plugins::LastFmGuidance::Provider::_storage_scope($value);
+        }
+        elsif ($key eq 'artist_result_limit') {
+            $value = $value =~ /^(?:25|50|100)$/ ? int($value) : 25;
         }
         elsif ($key ne 'api_key') {
             $value = _clamp($key, $value);

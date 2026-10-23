@@ -21,6 +21,11 @@ use lib '.';
     sub initPlugin { 1 }
     $INC{'Slim/Plugin/Base.pm'} = __FILE__;
 
+    package Slim::Control::Request;
+    our @DISPATCH;
+    sub addDispatch { push @DISPATCH, [@_] }
+    $INC{'Slim/Control/Request.pm'} = __FILE__;
+
     package main;
     sub WEBUI { 0 }
 }
@@ -28,6 +33,13 @@ use lib '.';
 require 'LastFmGuidance/Provider.pm';
 $INC{'Plugins/LastFmGuidance/Provider.pm'} = $INC{'LastFmGuidance/Provider.pm'};
 require 'LastFmGuidance/Plugin.pm';
+
+Plugins::LastFmGuidance::Plugin->initPlugin();
+is_deeply(
+    $Slim::Control::Request::DISPATCH[0][0],
+    ['lastfmguidance', 'graph', '_action'],
+    'plugin registers the background graph-maintenance command',
+);
 
 is(Plugins::LastFmGuidance::Plugin->getDisplayName, 'PLUGIN_LASTFMGUIDANCE_NAME', 'plugin publishes localized display name');
 my $descriptor = Plugins::LastFmGuidance::Plugin->guidance_provider_descriptor_v1;
