@@ -75,6 +75,12 @@ like($template_source, qr/graph_status\.retained_lastfm_bytes/,
     'initial graph status renders retained Last.fm data bytes');
 like($template_source, qr/result\.graph_retained_lastfm_bytes/,
     'live graph status renders retained Last.fm data bytes');
+like($template_source, qr/graph_job\.progress\.current_artist/,
+    'initial graph job status renders the artist currently being fetched');
+like($template_source, qr/result\.current_artist/,
+    'live graph job status updates the artist currently being fetched');
+like($template_source, qr/graph_job\.progress\.retained_lastfm_bytes/,
+    'initial graph job status renders live retained Last.fm data usage');
 like($template_source, qr/graph_status\.database_bytes/,
     'initial graph status retains the separate physical SQLite byte count');
 

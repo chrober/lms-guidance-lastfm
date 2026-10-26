@@ -54,6 +54,7 @@ is($descriptor->{provider_id}, 'lastfm', 'plugin forwards the public provider de
                 progress => {
                     database_bytes => 12_345,
                     retained_lastfm_bytes => 6_789,
+                    current_artist => 'Seed Artist',
                 },
             },
             graph => {
@@ -80,6 +81,8 @@ is($descriptor->{provider_id}, 'lastfm', 'plugin forwards the public provider de
         'graph command preserves the existing physical-size field');
     is($request->{results}{graph_retained_lastfm_bytes}, 6_789,
         'graph command reports retained Last.fm data separately');
+    is($request->{results}{current_artist}, 'Seed Artist',
+        'graph command reports the artist currently fetched by the native updater');
 }
 
 {

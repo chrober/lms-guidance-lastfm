@@ -65,8 +65,10 @@
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_START" | string %]</td><td id="lastfm-guidance-job-start" data-start="[% graph_job.started_at || 0 %]"></td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_DURATION" | string %]</td><td id="lastfm-guidance-job-duration" data-duration="[% graph_job.duration || 0 %]"></td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_STATUS" | string %]</td><td id="lastfm-guidance-job-message">[% graph_job.progress.message %]</td></tr>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_CURRENT_ARTIST" | string %]</td><td id="lastfm-guidance-job-current-artist">[% graph_job.progress.current_artist %]</td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_PROGRESS" | string %]</td><td id="lastfm-guidance-job-progress">[% graph_job.progress.current || 0 %] / [% graph_job.progress.total || 0 %]</td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_COUNTS" | string %]</td><td id="lastfm-guidance-job-counts">[% graph_job.progress.requests || 0 %] / [% graph_job.progress.cached || 0 %] / [% graph_job.progress.changed || 0 %]</td></tr>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_DATA_USAGE" | string %]</td><td id="lastfm-guidance-job-data-usage">[% graph_job.progress.retained_lastfm_bytes || 0 %] bytes</td></tr>
                     </table>
                     <p id="lastfm-guidance-job-error" style="color:#c9302c"></p>
                 </div>
@@ -180,8 +182,10 @@
         if (graphElement('lastfm-guidance-job-start')) graphElement('lastfm-guidance-job-start').textContent = formatStart(result.start);
         if (graphElement('lastfm-guidance-job-duration')) graphElement('lastfm-guidance-job-duration').textContent = formatDuration(result.duration);
         if (graphElement('lastfm-guidance-job-message')) graphElement('lastfm-guidance-job-message').textContent = result.message || '';
+        if (graphElement('lastfm-guidance-job-current-artist')) graphElement('lastfm-guidance-job-current-artist').textContent = result.current_artist || '';
         if (graphElement('lastfm-guidance-job-progress')) graphElement('lastfm-guidance-job-progress').textContent = (result.current || 0) + ' / ' + (result.total || 0);
         if (graphElement('lastfm-guidance-job-counts')) graphElement('lastfm-guidance-job-counts').textContent = (result.requests || 0) + ' / ' + (result.cached || 0) + ' / ' + (result.changed || 0);
+        if (graphElement('lastfm-guidance-job-data-usage')) graphElement('lastfm-guidance-job-data-usage').textContent = (result.retained_lastfm_bytes || 0) + ' bytes';
         if (graphElement('lastfm-guidance-job-error')) graphElement('lastfm-guidance-job-error').textContent = result.error || '';
         if (result.graph_state && graphElement('lastfm-guidance-graph-summary')) {
             graphElement('lastfm-guidance-graph-summary').textContent = '[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS" | string %]'
