@@ -110,10 +110,10 @@ PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS
 	EN	Library update status
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATE
-	EN	State: %s; artists: %s; updated roots: %s; database bytes: %s
+	EN	State: %s; artists: %s; updated roots: %s; SQLite storage bytes: %s; retained Last.fm data bytes: %s
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS
-	EN	State: %1; artists: %2; updated roots: %3; database bytes: %4; library coverage: %5/%6; external artists: %7; artist edges: %8; reciprocal pairs: %9
+	EN	State: %1; artists: %2; updated roots: %3; SQLite storage bytes: %4; retained Last.fm data bytes: %5; library coverage: %6/%7; external artists: %8; artist edges: %9; reciprocal pairs: %10
 
 PLUGIN_LASTFMGUIDANCE_JOB_START
 	EN	Start:

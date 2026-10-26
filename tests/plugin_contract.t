@@ -46,6 +46,43 @@ my $descriptor = Plugins::LastFmGuidance::Plugin->guidance_provider_descriptor_v
 is($descriptor->{provider_id}, 'lastfm', 'plugin forwards the public provider descriptor');
 
 {
+    package Plugins::LastFmGuidance::GraphJobs;
+    sub perform_action {
+        return {
+            ok => 1,
+            status => {
+                progress => {
+                    database_bytes => 12_345,
+                    retained_lastfm_bytes => 6_789,
+                },
+            },
+            graph => {
+                state => 'available',
+            },
+        };
+    }
+    sub status { return { progress => {} } }
+    $INC{'Plugins/LastFmGuidance/GraphJobs.pm'} = __FILE__;
+
+    package GraphCommandRequest;
+    sub new { bless { results => {} }, shift }
+    sub isNotCommand { 0 }
+    sub getParam { 'status' }
+    sub addResult { $_[0]->{results}{$_[1]} = $_[2] }
+    sub setStatusDone { $_[0]->{done} = 1 }
+
+    package main;
+    my $request = GraphCommandRequest->new;
+    Plugins::LastFmGuidance::Plugin::_graphCommand($request);
+    is($request->{results}{graph_database_bytes}, 12_345,
+        'graph command reports physical SQLite storage separately');
+    is($request->{results}{graph_bytes}, 12_345,
+        'graph command preserves the existing physical-size field');
+    is($request->{results}{graph_retained_lastfm_bytes}, 6_789,
+        'graph command reports retained Last.fm data separately');
+}
+
+{
     no warnings qw(redefine once);
     my @received;
     local *Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1 = sub {

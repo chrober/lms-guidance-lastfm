@@ -133,7 +133,8 @@ the Bliss result.
 
 When **API Key** is selected, the settings page also owns the offline graph
 policy, storage scope, and the number of similar artists requested per source.
-It shows graph coverage and size and can start a full library-artist update.
+It shows graph coverage, physical SQLite storage, and the separately accounted
+retained Last.fm data size, and can start a full library-artist update.
 The update:
 
 - snapshots distinct local Lyrion contributors with their available Artist
@@ -144,6 +145,13 @@ The update:
   counts, rate-limit pauses, errors, and completion without reloading the
   settings page; and
 - supports pause/resume, cancellation, compaction, and confirmed deletion.
+
+The 80 MiB safety budget applies to canonical Last.fm artist-similarity data
+kept in SQLite: returned artist identities, ranks, scores, and HTTP validators.
+Track similarities may use the separate short-lived JSON cache but are never
+persisted in SQLite. SQLite pages, indexes, WAL/SHM files, and Lyrion-owned
+membership metadata are not treated as Last.fm data. The settings page displays
+both the logical retained-data total and the physical SQLite footprint.
 
 Normal **Save** remains explicit. Maintenance buttons never persist unrelated
 unsaved form edits. Graph controls are hidden for **LastMix**, and that path
