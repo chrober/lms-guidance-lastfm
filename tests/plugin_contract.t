@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use File::Spec;
+use JSON::PP ();
 use lib '.';
 
 {
@@ -55,6 +56,9 @@ is($descriptor->{provider_id}, 'lastfm', 'plugin forwards the public provider de
                     database_bytes => 12_345,
                     retained_lastfm_bytes => 6_789,
                     current_artist => 'Seed Artist',
+                    finished => JSON::PP::true,
+                    cancelled => JSON::PP::true,
+                    budget_exhausted => JSON::PP::true,
                 },
             },
             graph => {
@@ -83,6 +87,10 @@ is($descriptor->{provider_id}, 'lastfm', 'plugin forwards the public provider de
         'graph command reports retained Last.fm data separately');
     is($request->{results}{current_artist}, 'Seed Artist',
         'graph command reports the artist currently fetched by the native updater');
+    for my $field (qw(finished cancelled budget_exhausted)) {
+        is($request->{results}{$field}, 1, "$field is returned as a JSON-safe numeric flag");
+        ok(!ref($request->{results}{$field}), "$field does not leak a blessed JSON boolean");
+    }
 }
 
 {
