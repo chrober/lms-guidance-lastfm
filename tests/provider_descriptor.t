@@ -182,7 +182,7 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
     no warnings 'redefine';
     local *Plugins::LastFmGuidance::Provider::_program_path = sub { return $binary_path };
     local *Plugins::LastFmGuidance::Provider::_binary_version = sub {
-        return '{"schema_version":1,"program":"bliss-guidance-lastfm","version":"0.1.3","provider_id":"lastfm-guidance","spi_version":2,"acquisition_modes":["artifact","direct"],"offline_graph_schema_version":1,"graph_commands":["status","sync","compact","delete"],"channel_policies":{"lastfm_track":["bounded_influence"],"lastfm_artist":["bounded_influence","target_share"]}}';
+        return '{"schema_version":1,"program":"bliss-guidance-lastfm","version":"0.1.3","provider_id":"lastfm-guidance","spi_version":2,"acquisition_modes":["artifact","direct"],"offline_graph_schema_version":2,"graph_commands":["status","sync","compact","delete"],"channel_policies":{"lastfm_track":["bounded_influence"],"lastfm_artist":["bounded_influence","target_share"]}}';
     };
     $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
     $Slim::Utils::Prefs::PREFS->set(api_key => 'test-direct-api-key');

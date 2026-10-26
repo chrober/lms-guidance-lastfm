@@ -166,7 +166,7 @@ sub _binary_graph_compatible {
     my ($version) = @_;
     my $metadata = eval { decode_json($version || '') };
     return 0 unless ref($metadata) eq 'HASH';
-    return 0 unless ($metadata->{offline_graph_schema_version} || 0) == 1;
+    return 0 unless ($metadata->{offline_graph_schema_version} || 0) == 2;
     my %commands = map { $_ => 1 }
         grep { defined $_ && !ref($_) }
         @{ref($metadata->{graph_commands}) eq 'ARRAY' ? $metadata->{graph_commands} : []};
