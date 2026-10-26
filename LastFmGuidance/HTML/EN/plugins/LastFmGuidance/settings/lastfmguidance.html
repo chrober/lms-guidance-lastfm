@@ -60,7 +60,7 @@
             <div class="prefHead">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS" | string %]</div>
             <div class="prefs">
                 <p id="lastfm-guidance-graph-summary">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE" | string(graph_status.state || 'missing', graph_status.artists || 0, graph_status.artist_observations || 0, graph_status.database_bytes || 0) %]</p>
-                <div id="lastfm-guidance-job-status" [% UNLESS graph_job.running || graph_job.progress.phase %]style="display:none"[% END %]>
+                <div id="lastfm-guidance-job-status" [% UNLESS graph_job.running || graph_job.progress.phase || graph_job.error %]style="display:none"[% END %]>
                     <table>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_START" | string %]</td><td id="lastfm-guidance-job-start">[% graph_job.started_at || 0 %]</td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_DURATION" | string %]</td><td id="lastfm-guidance-job-duration">[% graph_job.duration || 0 %]s</td></tr>
@@ -148,7 +148,8 @@
         if (!result) return;
         graphRunning = parseInt(result.running || 0, 10) === 1;
         var paused = parseInt(result.paused || 0, 10) === 1;
-        var hasJob = graphRunning || paused || parseInt(result.start || 0, 10) > 0;
+        var hasError = !!result.error;
+        var hasJob = graphRunning || paused || parseInt(result.start || 0, 10) > 0 || hasError;
         setGraphVisible('lastfm-guidance-job-status', hasJob);
         setGraphVisible('lastfm-guidance-start', !graphRunning && !paused);
         setGraphVisible('lastfm-guidance-pause', graphRunning);

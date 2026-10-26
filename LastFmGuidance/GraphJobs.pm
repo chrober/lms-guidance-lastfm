@@ -2,6 +2,8 @@ package Plugins::LastFmGuidance::GraphJobs;
 
 use strict;
 use warnings;
+use File::Basename qw(dirname);
+use File::Spec::Functions qw(catfile);
 use JSON::PP qw(decode_json encode_json);
 use Proc::Background;
 use Plugins::LastFmGuidance::Provider;
@@ -55,14 +57,11 @@ sub start_update {
         or return { ok => 0, error => 'cannot_open_progress_file' };
     open my $errors, '>>', Plugins::LastFmGuidance::Provider::_graph_progress_path() . '.err'
         or return { ok => 0, error => 'cannot_open_error_file' };
+    close $progress;
+    close $errors;
     local $ENV{BLISS_GUIDANCE_LASTFM_API_KEY} = $api_key;
     $process = eval {
-        Proc::Background->new(
-            {
-                die_upon_destroy => 1,
-                stdout => $progress,
-                stderr => $errors,
-            },
+        _start_native_graph_process(
             Plugins::LastFmGuidance::Provider::_program_path(),
             'graph', 'sync', '--request', Plugins::LastFmGuidance::Provider::_graph_request_path(),
         );
@@ -128,10 +127,11 @@ sub start_compact {
         or return { ok => 0, error => 'cannot_open_progress_file' };
     open my $errors, '>>', Plugins::LastFmGuidance::Provider::_graph_progress_path() . '.err'
         or return { ok => 0, error => 'cannot_open_error_file' };
+    close $progress;
+    close $errors;
     local $ENV{BLISS_GUIDANCE_LASTFM_API_KEY} = $api_key;
     $process = eval {
-        Proc::Background->new(
-            { die_upon_destroy => 1, stdout => $progress, stderr => $errors },
+        _start_native_graph_process(
             Plugins::LastFmGuidance::Provider::_program_path(),
             'graph', 'compact', '--request', Plugins::LastFmGuidance::Provider::_graph_request_path(),
         );
@@ -189,7 +189,16 @@ sub status {
         my $exit = eval { $process->wait };
         $ended_at ||= time();
         $paused = 1 if $event->{paused};
-        if (defined $exit && $exit != 0 && !$event->{cancelled}) {
+        my $structured_error = (($event->{state} || '') eq 'failed' || $event->{error})
+            ? ($event->{error} || 'native_graph_update_failed')
+            : '';
+        if (length $structured_error && !$event->{cancelled}) {
+            $last_error = $structured_error;
+            Plugins::LastFmGuidance::Provider::_log_error(
+                'Offline Last.fm library update failed: ' . $last_error
+            );
+        }
+        elsif (defined $exit && $exit != 0 && !$event->{cancelled}) {
             $last_error = _last_error_line() || 'native_graph_update_failed';
             Plugins::LastFmGuidance::Provider::_log_error(
                 'Offline Last.fm library update failed: ' . $last_error
@@ -296,6 +305,18 @@ sub _write_json {
     print {$fh} encode_json($value);
     close $fh or die "Cannot finish Last.fm graph request: $!";
     rename $temporary, $path or die "Cannot publish Last.fm graph request: $!";
+}
+
+sub _start_native_graph_process {
+    my @command = @_;
+    return Proc::Background->new(
+        { die_upon_destroy => 1 },
+        $^X,
+        catfile(dirname(__FILE__), 'GraphRunner.pl'),
+        Plugins::LastFmGuidance::Provider::_graph_progress_path(),
+        Plugins::LastFmGuidance::Provider::_graph_progress_path() . '.err',
+        @command,
+    );
 }
 
 1;

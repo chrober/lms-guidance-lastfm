@@ -54,6 +54,10 @@ like($template_source, qr/lastfmguidance.*graph.*action/s,
     'settings page controls the maintenance job through the plugin JSON-RPC command');
 like($template_source, qr/setInterval\(refreshGraphStatus/,
     'settings page polls the background job without reloading or implicitly saving settings');
+like($template_source, qr/hasError.*result\.error.*hasJob.*hasError/s,
+    'settings page keeps an early native-start error visible without a running job');
+like($template_source, qr/graph_job\.running.*graph_job\.progress\.phase.*graph_job\.error/s,
+    'a page reload also renders a recorded native-start error');
 like($template_source, qr/lastfm-guidance-graph-section/, 'graph controls have API-key-only conditional visibility');
 
 done_testing;

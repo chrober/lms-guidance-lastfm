@@ -12,9 +12,11 @@ my $directory = tempdir(CLEANUP => 1);
     our $ALIVE = 1;
     our $WAIT = 0;
     our @ARGS;
+    our $OPTIONS;
     our $CAPTURED_KEY;
     sub new {
         my ($class, $options, @args) = @_;
+        $OPTIONS = $options;
         @ARGS = @args;
         $CAPTURED_KEY = $ENV{BLISS_GUIDANCE_LASTFM_API_KEY};
         return bless {}, $class;
@@ -102,10 +104,20 @@ is($Proc::Background::CAPTURED_KEY, 'private-test-key',
 ok(!defined $ENV{BLISS_GUIDANCE_LASTFM_API_KEY},
     'does not retain the API key in the LMS process environment');
 is_deeply(
-    \@Proc::Background::ARGS,
-    ['/trusted/bliss-guidance-lastfm', 'graph', 'sync', '--request', "$directory/request.json"],
-    'starts only the trusted native graph command and request path',
+    [@Proc::Background::ARGS[2 .. $#Proc::Background::ARGS]],
+    [
+        "$directory/progress.jsonl",
+        "$directory/progress.jsonl.err",
+        '/trusted/bliss-guidance-lastfm', 'graph', 'sync', '--request', "$directory/request.json",
+    ],
+    'passes only trusted output paths and the native graph command to the detached runner',
 );
+is($Proc::Background::ARGS[0], $^X,
+    'starts the detached runner with the same Perl interpreter as LMS');
+like($Proc::Background::ARGS[1], qr{(?:^|[\\/])GraphRunner\.pl$},
+    'uses the provider-owned detached graph runner');
+ok(!exists $Proc::Background::OPTIONS->{stdout} && !exists $Proc::Background::OPTIONS->{stderr},
+    'does not ask Proc::Background to reopen LMS tied output handles');
 ok(-f "$directory/roots.json", 'freezes the library roots before starting native work');
 ok(-f "$directory/request.json", 'publishes a trusted maintenance request');
 
@@ -132,6 +144,22 @@ is($failed_status->{error}, 'simulated native failure',
     'surfaces a native child failure through provider job status');
 is($failed_status->{duration} >= 0, 1,
     'retains a stable duration after the native process exits');
+
+$Proc::Background::WAIT = 0;
+$Proc::Background::ALIVE = 1;
+my $structured_failure_started = Plugins::LastFmGuidance::GraphJobs::start_update();
+ok($structured_failure_started->{ok}, 'starts a job for structured native failure checks');
+open my $progress_fh, '>', "$directory/progress.jsonl" or die $!;
+print {$progress_fh} encode_json({
+    schema_version => 1,
+    state => 'failed',
+    error => 'duplicate canonical artist identity',
+}) . "\n";
+close $progress_fh;
+$Proc::Background::ALIVE = 0;
+my $structured_failure_status = Plugins::LastFmGuidance::GraphJobs::status();
+is($structured_failure_status->{error}, 'duplicate canonical artist identity',
+    'surfaces a structured native graph failure even when the process wrapper has no exit code');
 
 $Proc::Background::WAIT = 0;
 $Proc::Background::ALIVE = 1;
