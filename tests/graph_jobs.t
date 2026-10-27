@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use utf8;
 use File::Temp qw(tempdir);
 use JSON::PP qw(encode_json);
 use Test::More;
@@ -35,15 +36,20 @@ my $directory = tempdir(CLEANUP => 1);
     our @LOG;
     our $AVAILABLE = 1;
     our $API_KEY = 'private-test-key';
+    our $ARTIST_REFRESH = 0;
+    our $EMPTY_REFRESH = 0;
+    our $CLEANUP_CAPABLE = 1;
     sub guidance_provider_defaults_v1 {
         return {
             source => 'api_key', retrieval_policy => 'online_with_cache',
             storage_scope => 'all_returned_artists', artist_result_limit => 25,
             data_budget_mb => 100,
+            artist_refresh_days => $ARTIST_REFRESH, empty_artist_refresh_days => $EMPTY_REFRESH,
         };
     }
     sub guidance_provider_status_v1 {
-        return { available => $AVAILABLE, reason => $AVAILABLE ? '' : 'native_graph_capability_missing' };
+        return { available => $AVAILABLE, reason => $AVAILABLE ? '' : 'native_graph_capability_missing',
+            version => $CLEANUP_CAPABLE ? '{"artist_graph_cleanup":true}' : '{}' };
     }
     sub _api_key { return $API_KEY }
     sub _program_path { return '/trusted/bliss-guidance-lastfm' }
@@ -75,6 +81,13 @@ my $directory = tempdir(CLEANUP => 1);
 
 require 'LastFmGuidance/GraphJobs.pm';
 {
+    open my $fh, '>:raw', "$directory/progress.jsonl" or die $!;
+    print {$fh} encode_json({ message => 'Fetching similar artists for Ukulélé', current_artist => 'Ukulélé' }) . "\n";
+    close $fh;
+    my $event = Plugins::LastFmGuidance::GraphJobs::_last_progress_event();
+    is($event->{current_artist}, 'Ukulélé', 'UTF-8 progress JSON is decoded without mojibake');
+}
+{
     no warnings qw(redefine once);
     *Plugins::LastFmGuidance::GraphJobs::_read_graph_status = sub {
         return { state => 'ready', artists => 1 };
@@ -97,6 +110,8 @@ my $missing_key = Plugins::LastFmGuidance::GraphJobs::start_update();
 is($missing_key->{error}, 'api_key_missing',
     'requires the provider-owned API key before freezing a library snapshot');
 $Plugins::LastFmGuidance::Provider::API_KEY = 'private-test-key';
+$Plugins::LastFmGuidance::Provider::ARTIST_REFRESH = 30;
+$Plugins::LastFmGuidance::Provider::EMPTY_REFRESH = 7;
 my $started = Plugins::LastFmGuidance::GraphJobs::start_update();
 diag($started->{error}) unless $started->{ok};
 ok($started->{ok}, 'starts a provider-owned background update');
@@ -126,6 +141,8 @@ my $request = JSON::PP::decode_json(do { local $/; <$request_fh> });
 close $request_fh;
 is($request->{budget_bytes}, 100_000_000,
     'passes the configured decimal 100 MB retained-data budget to the native scanner');
+is($request->{artist_refresh_days}, 30, 'manual update receives the positive-result refresh target');
+is($request->{empty_artist_refresh_days}, 7, 'manual update receives the empty-result refresh target');
 
 my $status = Plugins::LastFmGuidance::GraphJobs::status();
 ok($status->{running}, 'reports the child as running');
@@ -199,5 +216,16 @@ ok($polling_started->{ok}, 'starts a job for graph-status polling checks');
     is($native_status_queries, 2,
         'idle UI polling keeps the completed graph metadata cached');
 }
+
+$Plugins::LastFmGuidance::Provider::CLEANUP_CAPABLE = 0;
+is(Plugins::LastFmGuidance::GraphJobs::start_compact()->{error}, 'native_cleanup_capability_missing',
+    'cleanup refuses an older binary that would silently skip repair');
+$Plugins::LastFmGuidance::Provider::CLEANUP_CAPABLE = 1;
+$Proc::Background::ALIVE = 1;
+ok(Plugins::LastFmGuidance::GraphJobs::start_compact()->{ok}, 'starts targeted cleanup with a fresh library snapshot');
+open my $compact_fh, '<', "$directory/request.json" or die $!;
+my $compact_request = JSON::PP::decode_json(do { local $/; <$compact_fh> });
+close $compact_fh;
+is($compact_request->{roots_path}, "$directory/roots.json", 'cleanup receives the fresh library snapshot');
 
 done_testing;

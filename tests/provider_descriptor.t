@@ -190,6 +190,10 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
     my $compatible = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
     ok($compatible->{available},
         'an API-key provider declaring acquisition, policy, and offline-graph capabilities is accepted');
+    $Slim::Utils::Prefs::PREFS->set(artist_refresh_days => 30);
+    is(Plugins::LastFmGuidance::Provider::guidance_provider_status_v1()->{reason}, 'native_binary_incompatible',
+        'an old native provider cannot silently ignore a configured refresh target');
+    $Slim::Utils::Prefs::PREFS->set(artist_refresh_days => 0);
 }
 
 {
@@ -241,6 +245,13 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
     }, 'direct API mode passes only trusted non-secret native configuration');
     unlike(encode_json($config), qr/test-direct-api-key/,
         'direct native configuration never serializes the API key');
+    $Slim::Utils::Prefs::PREFS->set(artist_refresh_days => 30);
+    $Slim::Utils::Prefs::PREFS->set(empty_artist_refresh_days => 7);
+    my $configured = Plugins::LastFmGuidance::Provider::guidance_provider_native_spi_config_v1({ source => 'api_key' }, {});
+    is($configured->{options}{artist_refresh_days}, 30, 'guidance receives the positive-result refresh target');
+    is($configured->{options}{empty_artist_refresh_days}, 7, 'guidance receives the empty-result refresh target');
+    $Slim::Utils::Prefs::PREFS->set(artist_refresh_days => 0);
+    $Slim::Utils::Prefs::PREFS->set(empty_artist_refresh_days => 0);
 }
 
 Plugins::LastFmGuidance::Provider::guidance_provider_log_events_v1([
@@ -260,17 +271,32 @@ Plugins::LastFmGuidance::Provider::guidance_provider_log_events_v1([
         event => 'lastfm_request_json', provider_id => 'lastfm-guidance',
         details => { request => { method => 'artist.getSimilar', api_key => 'must-not-leak' } },
     },
+    {
+        event_version => 'guidance_log_event_v1', level => 'warning', phase => 'prepare',
+        event => 'lastfm_lookup_failed', operation => 'artist.getSimilar',
+        source => { label => 'Rotor' }, cache_state => 'miss',
+        details => { error => 'HTTP status 429; retryable=yes; retry-after=60s' },
+    },
 ], { host => 'fixture' });
 ok(
     scalar(grep { $_->[1] eq 'Last.fm: got 25 similar artists for "Rotor"' }
         @{$Slim::Utils::Log::LOGGER->{lines}}),
     'native lookup event is rendered into the established Last.fm vocabulary',
 );
+is(Plugins::LastFmGuidance::Provider::_render_log_event({
+    event => 'lastfm_lookup_completed', operation => 'artist.getSimilar',
+    source => { label => 'Rotor' }, cache_state => 'stale_offline', result_count => 25,
+}), 'Last.fm: using stale offline similar artists for "Rotor" (25 results)',
+    'expired offline data is identified as cached rather than a fresh network result');
 unlike(
     join("\n", map { $_->[1] } @{$Slim::Utils::Log::LOGGER->{lines}}),
     qr/must-not-leak/,
     'provider event rendering redacts API keys defensively',
 );
+ok(scalar(grep { $_->[0] eq 'warning' && $_->[1] eq 'Last.fm request failed for similar artists "Rotor"; continuing without this result' } @{$Slim::Utils::Log::LOGGER->{lines}}),
+    'the existing warning message remains unchanged');
+ok(scalar(grep { $_->[0] eq 'debug' && $_->[1] =~ /HTTP status 429/ && $_->[1] =~ /retry-after=60s/ } @{$Slim::Utils::Log::LOGGER->{lines}}),
+    'the additional debug line explains the failed request');
 ok(
     scalar(grep { $_->[1] eq 'Last.fm scoring: candidates=20, similar-track supported=1, similar-artist supported=4' }
         @{$Slim::Utils::Log::LOGGER->{lines}}),

@@ -1,5 +1,7 @@
 use strict;
 use warnings;
+use utf8;
+use Encode qw(encode);
 use Digest::SHA qw(sha256_hex);
 use File::Temp qw(tempdir);
 use JSON::PP qw(decode_json);
@@ -15,6 +17,8 @@ use lib '.';
         return TestLibraryStatement->new([
             [12, 'Artist With MBID', 'artist-mbid-12'],
             [27, 'Name Only Artist', undef],
+            [28, Encode::encode('UTF-8', 'Ukulélé club de Paris'), undef],
+            [29, 'Björk', undef],
         ]);
     }
 
@@ -45,10 +49,12 @@ is($snapshot->{kind}, 'lastfm-library-artist-roots-v1', 'uses the native snapsho
 is_deeply($snapshot->{artists}, [
     { lms_contributor_id => 12, name => 'Artist With MBID', artist_mbids => ['artist-mbid-12'] },
     { lms_contributor_id => 27, name => 'Name Only Artist', artist_mbids => [] },
+    { lms_contributor_id => 28, name => 'Ukulélé club de Paris', artist_mbids => [] },
+    { lms_contributor_id => 29, name => 'Björk', artist_mbids => [] },
 ], 'captures stable LMS contributor IDs, names, and optional artist MBIDs');
 is(
     $snapshot->{library_identity},
-    sha256_hex("12|Artist With MBID|artist-mbid-12\n27|Name Only Artist"),
+    sha256_hex(encode('UTF-8', "12|Artist With MBID|artist-mbid-12\n27|Name Only Artist\n28|Ukulélé club de Paris\n29|Björk")),
     'library identity is deterministic for the frozen root set',
 );
 

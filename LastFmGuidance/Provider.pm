@@ -26,6 +26,8 @@ my %FACTORY_DEFAULTS = (
     storage_scope           => 'all_returned_artists',
     artist_result_limit     => 25,
     data_budget_mb          => 100,
+    artist_refresh_days     => 0,
+    empty_artist_refresh_days => 0,
     settings_revision        => 1,
 );
 
@@ -134,8 +136,11 @@ sub guidance_provider_defaults_v1 {
     my $data_budget_mb = $prefs->get('data_budget_mb');
     $data_budget_mb = 100 unless defined($data_budget_mb) && $data_budget_mb =~ /^\d+$/;
     $data_budget_mb = 1 if $data_budget_mb < 1;
-    $data_budget_mb = 100 if $data_budget_mb > 100;
     $defaults{data_budget_mb} = int($data_budget_mb);
+    for my $key (qw(artist_refresh_days empty_artist_refresh_days)) {
+        my $value = $prefs->get($key);
+        $defaults{$key} = defined($value) && $value =~ /^\d+$/ && $value <= 4294967295 ? int($value) : 0;
+    }
     return \%defaults;
 }
 
@@ -161,6 +166,12 @@ sub _provider_status_for_source {
     else {
         return { available => 0, reason => 'native_binary_incompatible', program => $program }
             unless _binary_graph_compatible($version);
+        my $defaults = guidance_provider_defaults_v1();
+        if ($defaults->{artist_refresh_days} || $defaults->{empty_artist_refresh_days}) {
+            my $metadata = eval { decode_json($version || '') };
+            return { available => 0, reason => 'native_binary_incompatible', program => $program }
+                unless ref($metadata) eq 'HASH' && $metadata->{artist_refresh_targets};
+        }
         return { available => 0, reason => 'api_key_missing', program => $program }
             unless _api_key();
     }
@@ -247,6 +258,9 @@ sub guidance_provider_native_spi_config_v1 {
         $options->{storage_scope} = $defaults->{storage_scope};
         $options->{artist_result_limit} = 0 + $defaults->{artist_result_limit};
         $options->{budget_bytes} = 0 + $defaults->{data_budget_mb} * 1_000_000;
+        for my $key (qw(artist_refresh_days empty_artist_refresh_days)) {
+            $options->{$key} = 0 + $defaults->{$key} if $defaults->{$key};
+        }
         $options->{request_deadline_ms} = 5000;
         $options->{max_concurrent_requests} = 2;
         if (defined $trusted_context->{api_endpoint} && length $trusted_context->{api_endpoint}) {
@@ -441,6 +455,13 @@ sub guidance_provider_log_events_v1 {
             : $level eq 'info' ? _log_info($message)
             : $level eq 'error' ? _log_error($message)
             : _log_warning($message);
+        if (($event->{event} || '') eq 'lastfm_lookup_failed') {
+            my $details = ref($event->{details}) eq 'HASH' ? $event->{details} : {};
+            _log_debug('Last.fm lookup failure details: ' . _safe_json({
+                operation => $event->{operation}, source => $event->{source},
+                cache_state => $event->{cache_state}, error => $details->{error},
+            }));
+        }
     }
     return 1;
 }
@@ -467,6 +488,10 @@ sub _render_log_event {
             $source->{mbid} ? ' using ' . $identity . ' ' . $source->{mbid} : '');
     }
     if ($name eq 'lastfm_lookup_completed') {
+        if (($event->{cache_state} || '') eq 'stale_offline') {
+            return sprintf('Last.fm: using stale offline similar %s for "%s" (%d results)',
+                $operation eq 'artist.getSimilar' ? 'artists' : 'tracks', $label, $count);
+        }
         return sprintf($event->{cache_state} && $event->{cache_state} eq 'hit'
                 ? 'Last.fm: returning cached similar %s for "%s" (%d results)'
                 : 'Last.fm: got %d similar %s for "%s"',
@@ -484,6 +509,10 @@ sub _render_log_event {
     if ($name eq 'lastfm_lookup_failed') {
         return sprintf('Last.fm request failed for similar %s "%s"; continuing without this result',
             $operation eq 'artist.getSimilar' ? 'artists' : 'tracks', $label);
+    }
+    if ($name eq 'lastfm_persistence_skipped' && ($event->{cache_state} || '') eq 'budget_exhausted') {
+        return sprintf('Last.fm: did not store %s for "%s" because the configured data limit was reached',
+            $operation eq 'artist.getSimilar' ? 'similar artists' : 'similar tracks', $label);
     }
     if ($name eq 'lastfm_prepare_completed') {
         return sprintf('Last.fm guidance prepared: requests=%d, cache hits=%d, failures=%d, relations=%d',

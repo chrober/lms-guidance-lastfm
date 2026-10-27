@@ -1,16 +1,20 @@
+<style>
+    .lastfm-guidance-hidden { display: none; }
+    .lastfm-guidance-section-header { cursor: pointer; font-size: 125%; }
+    .lastfm-guidance-section-header.shown-section:before { font-family: monospace !important; content: "\25BC\00a0"; }
+    .lastfm-guidance-section-header.hidden-section:before { font-family: monospace !important; content: "\25B6\00a0"; }
+</style>
 [% PROCESS settings/header.html %]
 
 [% WRAPPER settingSection %]
     <p>[% "PLUGIN_LASTFMGUIDANCE_NOTE" | string %]</p>
 
-    <h3>[% "PLUGIN_LASTFMGUIDANCE_STATUS" | string %]</h3>
-    [% IF provider_status.available %]
-        <p style="color:#398439">[% "PLUGIN_LASTFMGUIDANCE_STATUS_AVAILABLE" | string %]</p>
-    [% ELSE %]
+    [% UNLESS provider_status.available %]
         <p style="color:#c9302c">[% "PLUGIN_LASTFMGUIDANCE_STATUS_UNAVAILABLE" | string(provider_status.reason) %]</p>
     [% END %]
 
-    <h3>[% "PLUGIN_LASTFMGUIDANCE_DEFAULTS" | string %]</h3>
+    <b id="lastfm-guidance-defaults-header" class="lastfm-guidance-section-header shown-section" role="button" tabindex="0" aria-expanded="true" aria-controls="lastfm-guidance-defaults">[% "PLUGIN_LASTFMGUIDANCE_DEFAULTS" | string %]</b><br/><br/>
+    <div id="lastfm-guidance-defaults">
     <p>[% "PLUGIN_LASTFMGUIDANCE_DEFAULTS_NOTE" | string %]</p>
 
     [% WRAPPER settingGroup title="GUIDANCE_LASTFM_SOURCE" desc="GUIDANCE_LASTFM_SOURCE_DESC" %]
@@ -26,7 +30,7 @@
 
     <div id="lastfm-guidance-api-key-group">
         [% WRAPPER settingGroup title="GUIDANCE_LASTFM_API_KEY" desc="GUIDANCE_LASTFM_API_KEY_DESC" %]
-            <input type="password" class="stdedit" name="pref_api_key" id="lastfm-guidance-api-key" value="[% prefs.api_key %]" size="42" autocomplete="off">
+            <input type="text" class="stdedit" name="pref_api_key" id="lastfm-guidance-api-key" value="[% prefs.api_key | html %]" size="42" autocomplete="off" spellcheck="false">
         [% END %]
     </div>
 
@@ -44,9 +48,11 @@
     [% WRAPPER settingGroup title="GUIDANCE_LASTFM_ARTIST_LEVEL" desc="GUIDANCE_LASTFM_ARTIST_LEVEL_DESC" %]
         <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_artist_level" id="lastfm_artist_level" value="[% prefs.lastfm_artist_level %]" size="5">
     [% END %]
+    </div>
 
     <div id="lastfm-guidance-graph-section">
-        <h3>[% "PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH" | string %]</h3>
+        <b id="lastfm-guidance-graph-content-header" class="lastfm-guidance-section-header shown-section" role="button" tabindex="0" aria-expanded="true" aria-controls="lastfm-guidance-graph-content">[% "PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH" | string %]</b><br/><br/>
+        <div id="lastfm-guidance-graph-content">
         <p>[% "PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH_DESC" | string %]</p>
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY" desc="PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY_DESC" %]
@@ -64,11 +70,23 @@
         [% END %]
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT" desc="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC" %]
-            <input type="number" min="1" step="1" class="stdedit" name="pref_artist_result_limit" id="lastfm-guidance-artist-result-limit" value="[% IF prefs.artist_result_limit %][% prefs.artist_result_limit %][% END %]" size="8">
+            <input type="number" min="1" step="1" class="stdedit" name="pref_artist_result_limit" id="lastfm-guidance-artist-result-limit" value="[% IF prefs.artist_result_limit %][% prefs.artist_result_limit %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_ARTIST_LIMIT_UNLIMITED' | string %]" size="8">
+        [% END %]
+
+        [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH" desc="PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH_DESC" %]
+            <input type="number" min="1" max="4294967295" step="1" class="stdedit" name="pref_artist_refresh_days" id="lastfm-guidance-artist-refresh" value="[% IF prefs.artist_refresh_days %][% prefs.artist_refresh_days %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC' | string %]" size="8">
+        [% END %]
+
+        [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH" desc="PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH_DESC" %]
+            <input type="number" min="1" max="4294967295" step="1" class="stdedit" name="pref_empty_artist_refresh_days" id="lastfm-guidance-empty-artist-refresh" value="[% IF prefs.empty_artist_refresh_days %][% prefs.empty_artist_refresh_days %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC' | string %]" size="8">
         [% END %]
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_DATA_BUDGET" desc="PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_DESC" %]
-            <input type="number" min="1" max="100" step="1" class="stdedit" name="pref_data_budget_mb" id="lastfm-guidance-data-budget" value="[% prefs.data_budget_mb %]" size="8">
+            <input type="number" min="1" step="1" class="stdedit" name="pref_data_budget_mb" id="lastfm-guidance-data-budget" value="[% prefs.data_budget_mb %]" size="8">
+            <div id="lastfm-guidance-budget-warning" style="display:none" data-confirm-required="[% 'PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_CONFIRM_REQUIRED' | string | html %]">
+                <p>[% 'PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_WARNING' | string %] <a href="https://www.last.fm/api/tos" target="_blank" rel="noopener noreferrer">[% 'PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_TERMS' | string %]</a></p>
+                <label><input type="checkbox" id="lastfm-guidance-budget-confirm"> [% 'PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_CONFIRM' | string %]</label>
+            </div>
         [% END %]
 
         <div class="settingGroup">
@@ -86,6 +104,7 @@
                     </table>
                 </div>
                 <p id="lastfm-guidance-job-error" style="color:#c9302c">[% graph_job.error %]</p>
+                <p id="lastfm-guidance-cleanup-report"></p>
                 <button class="inputbutton" type="button" id="lastfm-guidance-start">[% 'PLUGIN_LASTFMGUIDANCE_START_UPDATE' | string %]</button>
                 <button class="inputbutton" type="button" id="lastfm-guidance-pause" style="display:none">[% 'PLUGIN_LASTFMGUIDANCE_PAUSE_UPDATE' | string %]</button>
                 <button class="inputbutton" type="button" id="lastfm-guidance-resume" style="display:none">[% 'PLUGIN_LASTFMGUIDANCE_RESUME_UPDATE' | string %]</button>
@@ -94,14 +113,53 @@
                 <button class="inputbutton" type="button" id="lastfm-guidance-delete">[% 'PLUGIN_LASTFMGUIDANCE_DELETE' | string %]</button>
             </div>
         </div>
+        </div>
     </div>
 [% END %]
 
 <script>
 (function () {
+    function bindSection(id) {
+        var section = document.getElementById(id);
+        var header = document.getElementById(id + '-header');
+        if (!section || !header) return;
+        var storageKey = 'lastfm-guidance::' + id;
+        function setShown(shown) {
+            section.classList.toggle('lastfm-guidance-hidden', !shown);
+            header.classList.toggle('shown-section', shown);
+            header.classList.toggle('hidden-section', !shown);
+            header.setAttribute('aria-expanded', shown ? 'true' : 'false');
+            try { window.localStorage.setItem(storageKey, shown ? 'true' : 'false'); } catch (e) { }
+        }
+        try {
+            var stored = window.localStorage.getItem(storageKey);
+            if (stored !== null) setShown(stored === 'true');
+        } catch (e) { }
+        function toggle() { setShown(section.classList.contains('lastfm-guidance-hidden')); }
+        header.addEventListener('click', toggle);
+        header.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); }
+        });
+    }
+    bindSection('lastfm-guidance-defaults');
+    bindSection('lastfm-guidance-graph-content');
     var source = document.getElementById('lastfm-guidance-source');
     var apiKey = document.getElementById('lastfm-guidance-api-key-group');
     var graph = document.getElementById('lastfm-guidance-graph-section');
+    var budget = document.getElementById('lastfm-guidance-data-budget');
+    var budgetWarning = document.getElementById('lastfm-guidance-budget-warning');
+    var budgetConfirm = document.getElementById('lastfm-guidance-budget-confirm');
+    var savedBudget = budget ? budget.value : '';
+    function updateBudgetWarning() {
+        var needsConfirmation = source.value === 'api_key' && Number(budget.value) > 100 && budget.value !== savedBudget && !budgetConfirm.checked;
+        budgetWarning.style.display = needsConfirmation ? '' : 'none';
+        budget.setCustomValidity(needsConfirmation ? budgetWarning.getAttribute('data-confirm-required') : '');
+    }
+    if (budget && budgetWarning && budgetConfirm) {
+        budget.addEventListener('input', function () { budgetConfirm.checked = false; updateBudgetWarning(); });
+        budgetConfirm.addEventListener('change', updateBudgetWarning);
+        updateBudgetWarning();
+    }
     var graphInterval;
     var graphIntervalDuration = 0;
     var graphRunning = parseInt('[% graph_job.running || 0 %]', 10) === 1;
@@ -110,6 +168,7 @@
     function refresh() {
         apiKey.style.display = source.value === 'api_key' ? '' : 'none';
         graph.style.display = source.value === 'api_key' ? '' : 'none';
+        if (budget && budgetWarning && budgetConfirm) updateBudgetWarning();
         if (source.value === 'api_key') {
             setGraphPolling(graphRunning ? 1000 : 5000);
             refreshGraphStatus();
@@ -190,6 +249,11 @@
         if (graphElement('lastfm-guidance-job-counts')) graphElement('lastfm-guidance-job-counts').textContent = (result.requests || 0) + ' / ' + (result.cached || 0) + ' / ' + (result.changed || 0);
         if (graphElement('lastfm-guidance-job-data-usage')) graphElement('lastfm-guidance-job-data-usage').textContent = formatBytes(result.retained_lastfm_bytes);
         if (graphElement('lastfm-guidance-job-error')) graphElement('lastfm-guidance-job-error').textContent = result.error || '';
+        if (graphElement('lastfm-guidance-cleanup-report')) {
+            graphElement('lastfm-guidance-cleanup-report').textContent = result.cleanup_done
+                ? '[% "PLUGIN_LASTFMGUIDANCE_COMPACT_REPORT" | string %]'.replace('%1', result.repaired_names || 0).replace('%2', result.removed_orphans || 0).replace('%3', result.ambiguous_names || 0)
+                : '';
+        }
         if (result.graph_state && graphElement('lastfm-guidance-graph-summary')) {
             graphElement('lastfm-guidance-graph-summary').textContent = '[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS" | string %]'
                 .replace('%10', result.graph_reciprocal_pairs || 0)
@@ -214,6 +278,7 @@
         var button = graphElement(id);
         if (!button) return;
         button.addEventListener('click', function () {
+            if (action === 'compact' && !window.confirm('[% "PLUGIN_LASTFMGUIDANCE_COMPACT_CONFIRM" | string %]')) return;
             button.disabled = true;
             graphAction(action).then(function (response) {
                 renderGraphStatus(response && response.result);

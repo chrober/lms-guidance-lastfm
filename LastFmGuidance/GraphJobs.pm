@@ -53,6 +53,9 @@ sub start_update {
         artist_result_limit => 0 + $defaults->{artist_result_limit},
         budget_bytes => 0 + $defaults->{data_budget_mb} * 1_000_000,
     };
+    for my $key (qw(artist_refresh_days empty_artist_refresh_days)) {
+        $request->{$key} = 0 + $defaults->{$key} if $defaults->{$key};
+    }
     _write_json(Plugins::LastFmGuidance::Provider::_graph_request_path(), $request);
     open my $progress, '>>', Plugins::LastFmGuidance::Provider::_graph_progress_path()
         or return { ok => 0, error => 'cannot_open_progress_file' };
@@ -108,20 +111,32 @@ sub resume {
 
 sub start_compact {
     return { ok => 0, error => 'already_running' } if $process && $process->alive;
+    return { ok => 0, error => 'library_scan_running' }
+        if eval { require Slim::Music::Import; Slim::Music::Import->stillScanning };
     my $defaults = Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1();
     return { ok => 0, error => 'api_key_source_required' }
         unless ($defaults->{source} || '') eq 'api_key';
     my $provider_status = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
     return { ok => 0, error => $provider_status->{reason} || 'provider_unavailable' }
         unless $provider_status->{available};
+    my $metadata = eval { decode_json($provider_status->{version} || '') };
+    return { ok => 0, error => 'native_cleanup_capability_missing' }
+        unless ref($metadata) eq 'HASH' && $metadata->{artist_graph_cleanup};
     my $api_key = Plugins::LastFmGuidance::Provider::_api_key();
     return { ok => 0, error => 'api_key_missing' } unless length $api_key;
+    my $snapshot = eval {
+        Plugins::LastFmGuidance::LibrarySnapshot::write_snapshot(
+            Plugins::LastFmGuidance::Provider::_root_snapshot_path()
+        );
+    };
+    return { ok => 0, error => $@ || 'cannot_create_library_snapshot' } unless $snapshot;
     unlink Plugins::LastFmGuidance::Provider::_graph_progress_path();
     unlink Plugins::LastFmGuidance::Provider::_graph_progress_path() . '.err';
     _write_json(Plugins::LastFmGuidance::Provider::_graph_request_path(), {
         acquisition_mode => 'direct',
         store_path => Plugins::LastFmGuidance::Provider::_graph_store_path(),
         legacy_cache_path => Plugins::LastFmGuidance::Provider::_legacy_cache_path(),
+        roots_path => Plugins::LastFmGuidance::Provider::_root_snapshot_path(),
         storage_scope => $defaults->{storage_scope},
         artist_result_limit => 0 + $defaults->{artist_result_limit},
         budget_bytes => 0 + $defaults->{data_budget_mb} * 1_000_000,
@@ -185,7 +200,8 @@ sub status {
     my $running = $process && $process->alive ? 1 : 0;
     my $event = _last_progress_event();
     if (($event->{state} || '') eq 'compacted') {
-        $event->{message} = 'Offline Last.fm data compacted';
+        $event->{message} = sprintf('Offline Last.fm data compacted: repaired=%d, removed=%d, ambiguous=%d',
+            $event->{repaired_names} || 0, $event->{removed_orphans} || 0, $event->{ambiguous_names} || 0);
         $event->{finished} = 1;
     }
     if (!$running && $process) {
@@ -219,13 +235,18 @@ sub status {
             );
         }
         elsif ($event->{finished}) {
-            Plugins::LastFmGuidance::Provider::_log_info(sprintf(
-                'Offline Last.fm library update completed: roots=%d, requests=%d, cached=%d, changed=%d',
-                $event->{total} || 0,
-                $event->{requests} || 0,
-                $event->{cached} || 0,
-                $event->{changed} || 0,
-            ));
+            if ($operation eq 'compact') {
+                Plugins::LastFmGuidance::Provider::_log_info($event->{message});
+            }
+            else {
+                Plugins::LastFmGuidance::Provider::_log_info(sprintf(
+                    'Offline Last.fm library update completed: roots=%d, requests=%d, cached=%d, changed=%d',
+                    $event->{total} || 0,
+                    $event->{requests} || 0,
+                    $event->{cached} || 0,
+                    $event->{changed} || 0,
+                ));
+            }
         }
         undef $process;
         graph_status();

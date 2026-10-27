@@ -1,16 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-10-27
 
-- Replace the API-key source's whole-file JSON cache with a versioned,
-  MBID-first SQLite similarity graph with transactional read-through updates,
-  freshness validators, migration, configurable result limits and storage
-  scope.
+- Add a versioned, MBID-first SQLite artist-similarity graph for the API-key
+  source, with read-through updates, freshness validators, migration,
+  configurable result limits and storage scope. Track results remain in the
+  separate expiring JSON cache.
 - Add an API-key-only background library-artist update with live status,
   pause/resume, cancellation, compaction and confirmed deletion on the provider
   settings page.
 - Keep LastMix artifact acquisition isolated from every graph path and reject
   pre-graph native binaries only when API Key behavior is selected.
+- Count unique resolved library artists consistently in scan progress and
+  coverage, without merging distinct MBIDs, and label an empty result limit
+  as unlimited.
+- Count retained Last.fm cache values without JSON formatting and expire old
+  track-cache entries before accounting. Include targeted artist cleanup and
+  configurable freshness and storage controls.
 
 ## 0.2.3 - 2026-10-17
 

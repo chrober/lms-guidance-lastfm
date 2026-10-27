@@ -106,11 +106,41 @@ PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT
 PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC
 	EN	Request and persist up to this many similar artists for each source artist. Leave empty to omit the request limit and store all results returned by Last.fm.
 
+PLUGIN_LASTFMGUIDANCE_ARTIST_LIMIT_UNLIMITED
+	EN	Unlimited
+
+PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH
+	EN	Refresh artists with results after (days)
+
+PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH_DESC
+	EN	Recheck a result after this many days since it was last validated. Leave empty to use Last.fm's cache lifetime, or 30 days if none is available. This does not start updates automatically.
+
+PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH
+	EN	Retry artists without results after (days)
+
+PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH_DESC
+	EN	Recheck an empty result after this many days since it was last validated. Leave empty to use Last.fm's cache lifetime, or 7 days if none is available. This does not start updates automatically.
+
+PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC
+	EN	Automatic
+
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET
 	EN	Retained Last.fm data limit (MB)
 
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_DESC
-	EN	Maximum retained Last.fm artist-relation data. The value cannot exceed the 100 MB reasonable-usage cap in the Last.fm API terms.
+	EN	Maximum retained Last.fm artist and track similarity data, in decimal MB. The default is 100 MB.
+
+PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_WARNING
+	EN	Last.fm's API terms prohibit retaining more than 100 MB of Last.fm data without prior written consent. The displayed data usage is an estimate, not a legal determination. Review the terms before continuing.
+
+PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_TERMS
+	EN	Last.fm API terms of service
+
+PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_CONFIRM
+	EN	I understand that prior written consent from Last.fm is required for more than 100 MB.
+
+PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_CONFIRM_REQUIRED
+	EN	Please confirm the Last.fm data limit warning before saving.
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS
 	EN	Library update status
@@ -152,7 +182,13 @@ PLUGIN_LASTFMGUIDANCE_CANCEL_UPDATE
 	EN	Cancel update
 
 PLUGIN_LASTFMGUIDANCE_COMPACT
-	EN	Compact/rebuild stored data
+	EN	Clean up and compact stored data
+
+PLUGIN_LASTFMGUIDANCE_COMPACT_CONFIRM
+	EN	Clean up artist records and compact the offline database? Unreferenced artists are removed, unambiguous malformed names are corrected, and relations outside the saved storage scope or result limit are removed.
+
+PLUGIN_LASTFMGUIDANCE_COMPACT_REPORT
+	EN	Cleanup complete: %1 names repaired; %2 unreferenced artists removed; %3 ambiguous names left unchanged.
 
 PLUGIN_LASTFMGUIDANCE_DELETE
 	EN	Delete offline data

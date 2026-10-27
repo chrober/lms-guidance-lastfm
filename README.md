@@ -135,6 +135,12 @@ When **API Key** is selected, the settings page also owns the offline graph
 policy, storage scope, and the number of similar artists requested per source.
 It shows graph coverage, physical SQLite storage, and the separately accounted
 retained Last.fm data size, and can start a full library-artist update.
+Optional refresh targets control when results and empty results are rechecked,
+using the last successful validation time. Empty fields use Last.fm freshness
+headers, falling back to 30 days for results and 7 days for empty results. A
+custom target applies to both manual updates and direct guidance preparation;
+it does not schedule scans. Existing HTTP validators are used for revalidation.
+The current cache implementation does not yet handle every HTTP cache directive.
 The update:
 
 - snapshots distinct local Lyrion contributors with their available Artist
@@ -146,12 +152,33 @@ The update:
   settings page; and
 - supports pause/resume, cancellation, compaction, and confirmed deletion.
 
-The 80 MiB safety budget applies to canonical Last.fm artist-similarity data
+**Clean up and compact stored data** takes a fresh Lyrion artist snapshot. It
+repairs only encoding errors that uniquely match that snapshot, marks repaired
+observations for revalidation, and removes artists with no remaining library or
+similarity references. Ambiguous matches are left unchanged and counted in the
+result. Referenced external artists and their similarity information are kept.
+The saved result limit and storage scope still trim relations during compaction.
+The operation can remove data and asks for confirmation; it makes no Last.fm
+requests.
+
+The configurable retained-data budget defaults to 100 decimal MB and applies to canonical Last.fm artist-similarity data
 kept in SQLite: returned artist identities, ranks, scores, and HTTP validators.
 Track similarities may use the separate short-lived JSON cache but are never
 persisted in SQLite. SQLite pages, indexes, WAL/SHM files, and Lyrion-owned
 membership metadata are not treated as Last.fm data. The settings page displays
 both the logical retained-data total and the physical SQLite footprint.
+The separate JSON track cache contributes the UTF-8 size of retained result
+values, excluding JSON field names, punctuation, cache keys and timestamps.
+Numbers use their canonical decimal representation.
+Expired track entries are pruned under a file lock when cache usage is checked
+or the cache is written; a graph status check can therefore clean this cache.
+An unreadable or unrecognized cache is preserved and reported as an accounting
+error instead of assigning it a guessed size. Normal guidance skips writing new cache data when the combined budget
+is full; independent concurrent processes can still race between the SQLite and
+JSON size checks. This accounting is an estimate, not a legal determination.
+Last.fm's [API terms](https://www.last.fm/api/tos) require prior written consent
+to exceed its 100 MB reasonable-usage cap. The displayed accounting is an
+estimate and does not establish compliance with those terms.
 
 Normal **Save** remains explicit. Maintenance buttons never persist unrelated
 unsaved form edits. Graph controls are hidden for **LastMix**, and that path
@@ -205,6 +232,10 @@ LastMix acquisition logs directly through this category. API Key acquisition
 and native scoring return structured events through
 `guidance_log_event_v1`; the host transports them back to this plugin for the
 same provider-owned rendering. API keys and signatures are always redacted.
+When a lookup fails, the existing warning is followed at debug level by the
+operation, source and available failure context, such as HTTP status, Last.fm
+error code, retryability or response-parsing stage. Offline library update
+failures and pauses include the artist and position being processed.
 
 ## Installation
 

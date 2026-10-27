@@ -22,6 +22,17 @@ use lib '.';
     package Slim::Web::Settings;
     sub import { }
     sub new { bless {}, shift }
+    sub handler {
+        my ($class, $client, $params) = @_;
+        if ($params->{saveSettings}) {
+            my ($prefs, @keys) = $class->prefs;
+            for my $key (@keys) {
+                my $param = 'pref_' . $key;
+                $prefs->set($key, $params->{$param}) if exists $params->{$param};
+            }
+        }
+        return $params;
+    }
     $INC{'Slim/Web/Settings.pm'} = __FILE__;
 }
 
@@ -45,16 +56,44 @@ my $template_source = do { local $/; <$template> };
 like($template_source, qr/settings\/footer\.html/, 'settings template includes the standard explicit Save footer');
 like($template_source, qr/pref_source/, 'settings page renders the LastMix/API Key source selector');
 like($template_source, qr/pref_api_key/, 'settings page contains the conditional API key field');
+like($template_source, qr/<input(?=[^>]*type="text")(?=[^>]*name="pref_api_key")(?=[^>]*autocomplete="off")[^>]*>/,
+    'API key is a text field and is not interpreted as a login password');
+like($template_source, qr/prefs\.api_key\s*\|\s*html/, 'API key value is escaped in HTML');
+unlike($template_source, qr/PLUGIN_LASTFMGUIDANCE_STATUS_AVAILABLE/, 'available status does not occupy a section');
+like($template_source, qr/UNLESS provider_status\.available.*PLUGIN_LASTFMGUIDANCE_STATUS_UNAVAILABLE/s,
+    'unavailable provider conditions are still reported');
+like($template_source, qr/bindSection\('lastfm-guidance-defaults'\).*bindSection\('lastfm-guidance-graph-content'\)/s,
+    'both settings sections can be folded');
+like($template_source, qr/localStorage\.getItem\(storageKey\).*localStorage|localStorage\.setItem\(storageKey.*localStorage\.getItem\(storageKey/s,
+    'folded section state is saved and restored');
 like($template_source, qr/lastfm-guidance-source/, 'settings page identifies the source selector for conditional visibility');
 like($template_source, qr/pref_retrieval_policy/, 'settings page owns the API-key retrieval policy');
 like($template_source, qr/pref_storage_scope/, 'settings page owns graph storage scope');
 like($template_source, qr/pref_artist_result_limit/, 'settings page owns the stored similar-artist limit');
 like($template_source, qr/type="number"[^>]+name="pref_artist_result_limit"/,
     'stored similar-artist limit is a numeric input');
+like($template_source, qr/<input(?=[^>]+name="pref_artist_result_limit")(?=[^>]+placeholder="\[%\s*'PLUGIN_LASTFMGUIDANCE_ARTIST_LIMIT_UNLIMITED'\s*\|\s*string\s*%\]")[^>]*>/,
+    'empty similar-artist limit displays a localized unlimited placeholder');
 unlike($template_source, qr/<select[^>]+name="pref_artist_result_limit"/,
     'stored similar-artist limit is not a fixed choice list');
-like($template_source, qr/<input(?=[^>]+name="pref_data_budget_mb")(?=[^>]+max="100")[^>]*>/,
-    'retained Last.fm data budget is configurable up to the service limit');
+like($template_source, qr/<input(?=[^>]+name="pref_data_budget_mb")(?![^>]+max=)[^>]*>/,
+    'retained Last.fm data budget accepts values above 100 MB');
+like($template_source, qr/lastfm-guidance-budget-warning.*last\.fm\/api\/tos.*lastfm-guidance-budget-confirm/s,
+    'higher limits require a warning with a link to the terms and confirmation');
+like($template_source, qr/setCustomValidity\(needsConfirmation/,
+    'an unconfirmed higher limit prevents saving');
+my $settings_prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
+Plugins::LastFmGuidance::Settings->handler(undef, { saveSettings => 1, pref_data_budget_mb => 250 });
+is($settings_prefs->get('data_budget_mb'), 250, 'saving preserves a limit above 100 MB');
+is(Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1()->{data_budget_mb}, 250,
+    'the effective provider limit also preserves the higher value');
+Plugins::LastFmGuidance::Settings->handler(undef, { saveSettings => 1, pref_artist_refresh_days => 30, pref_empty_artist_refresh_days => 7 });
+is(Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1()->{artist_refresh_days}, 30, 'custom positive refresh interval is saved');
+is(Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1()->{empty_artist_refresh_days}, 7, 'custom empty-result refresh interval is saved');
+Plugins::LastFmGuidance::Settings->handler(undef, { saveSettings => 1, pref_artist_refresh_days => '', pref_empty_artist_refresh_days => '' });
+is(Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1()->{artist_refresh_days}, 0, 'empty positive interval restores automatic mode');
+is(Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1()->{empty_artist_refresh_days}, 0, 'empty no-result interval restores automatic mode');
+like($template_source, qr/name="pref_artist_refresh_days".*name="pref_empty_artist_refresh_days"/s, 'settings page provides both refresh targets');
 like($template_source, qr/lastfm-guidance-start/, 'settings page exposes an explicit full graph update action');
 like($template_source, qr/lastfmguidance.*graph.*action/s,
     'settings page controls the maintenance job through the plugin JSON-RPC command');

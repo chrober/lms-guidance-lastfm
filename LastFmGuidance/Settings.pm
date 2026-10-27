@@ -7,7 +7,7 @@ use Slim::Utils::Prefs;
 use Plugins::LastFmGuidance::Provider;
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
-my @PREFS = qw(source api_key lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit data_budget_mb);
+my @PREFS = qw(source api_key lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit data_budget_mb artist_refresh_days empty_artist_refresh_days);
 
 sub name { return 'PLUGIN_LASTFMGUIDANCE_NAME'; }
 sub page { return 'plugins/LastFmGuidance/settings/lastfmguidance.html'; }
@@ -63,11 +63,14 @@ sub handler {
         elsif ($key eq 'data_budget_mb') {
             $value = $value =~ /^\d+$/ ? int($value) : 100;
             $value = 1 if $value < 1;
-            $value = 100 if $value > 100;
+        }
+        elsif ($key eq 'artist_refresh_days' || $key eq 'empty_artist_refresh_days') {
+            $value = defined($value) && $value =~ /^\d+$/ && $value > 0 && $value <= 4294967295 ? int($value) : 0;
         }
         elsif ($key ne 'api_key') {
             $value = _clamp($key, $value);
         }
+        $params->{$param} = $value;
         $prefs->set($key, $value);
     }
     if ($changed) {

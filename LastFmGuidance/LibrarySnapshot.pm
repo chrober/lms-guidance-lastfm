@@ -3,6 +3,7 @@ package Plugins::LastFmGuidance::LibrarySnapshot;
 use strict;
 use warnings;
 use Digest::SHA qw(sha256_hex);
+use Encode qw(decode encode FB_CROAK);
 use JSON::PP qw(encode_json);
 
 sub write_snapshot {
@@ -24,14 +25,14 @@ sub write_snapshot {
     while (my @row = $statement->fetchrow_array()) {
         push @artists, {
             lms_contributor_id => 0 + $row[0],
-            name => $row[1],
+            name => _unicode_text($row[1], $row[0]),
             artist_mbids => defined $row[2] && length $row[2] ? [$row[2]] : [],
         };
     }
     my $identity_source = join("\n", map {
         join('|', $_->{lms_contributor_id}, $_->{name}, @{$_->{artist_mbids}})
     } @artists);
-    my $library_identity = sha256_hex($identity_source);
+    my $library_identity = sha256_hex(encode('UTF-8', $identity_source));
     my $generated_at = time();
     my $snapshot = {
         kind => 'lastfm-library-artist-roots-v1',
@@ -47,6 +48,14 @@ sub write_snapshot {
     close $fh or die "Cannot finish Last.fm artist snapshot: $!";
     rename $temporary, $path or die "Cannot publish Last.fm artist snapshot: $!";
     return $snapshot;
+}
+
+sub _unicode_text {
+    my ($value, $contributor_id) = @_;
+    return $value if utf8::is_utf8($value);
+    my $decoded = eval { decode('UTF-8', $value, FB_CROAK) };
+    die "Invalid UTF-8 in Lyrion contributor $contributor_id" if $@;
+    return $decoded;
 }
 
 1;
