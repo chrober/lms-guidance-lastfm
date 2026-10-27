@@ -104,16 +104,22 @@ PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT
 	EN	Similar artists stored per source
 
 PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC
-	EN	Request and persist up to 25, 50, or 100 similar artists for each source artist. Last.fm may return fewer results.
+	EN	Request and persist up to this many similar artists for each source artist. Leave empty to omit the request limit and store all results returned by Last.fm.
+
+PLUGIN_LASTFMGUIDANCE_DATA_BUDGET
+	EN	Retained Last.fm data limit (MB)
+
+PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_DESC
+	EN	Maximum retained Last.fm artist-relation data. The value cannot exceed the 100 MB reasonable-usage cap in the Last.fm API terms.
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS
 	EN	Library update status
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATE
-	EN	State: %s; artists: %s; updated roots: %s; SQLite storage bytes: %s; retained Last.fm data bytes: %s
+	EN	State: %s; artists: %s; updated roots: %s; SQLite storage: %s; retained Last.fm data: %s
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS
-	EN	State: %1; artists: %2; updated roots: %3; SQLite storage bytes: %4; retained Last.fm data bytes: %5; library coverage: %6/%7; external artists: %8; artist edges: %9; reciprocal pairs: %10
+	EN	State: %1; artists: %2; updated roots: %3; SQLite storage: %4; retained Last.fm data: %5; library coverage: %6/%7; external artists: %8; artist edges: %9; reciprocal pairs: %10
 
 PLUGIN_LASTFMGUIDANCE_JOB_START
 	EN	Start:
@@ -123,9 +129,6 @@ PLUGIN_LASTFMGUIDANCE_JOB_DURATION
 
 PLUGIN_LASTFMGUIDANCE_JOB_STATUS
 	EN	Status:
-
-PLUGIN_LASTFMGUIDANCE_JOB_CURRENT_ARTIST
-	EN	Current artist:
 
 PLUGIN_LASTFMGUIDANCE_JOB_DATA_USAGE
 	EN	Retained Last.fm artist-relation data:

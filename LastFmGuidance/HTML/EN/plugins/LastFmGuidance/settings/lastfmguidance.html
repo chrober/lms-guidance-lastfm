@@ -30,6 +30,21 @@
         [% END %]
     </div>
 
+    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_TRACK_INFLUENCE" desc="GUIDANCE_LASTFM_TRACK_INFLUENCE_DESC" %]
+        <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_track_influence" id="lastfm_track_influence" value="[% prefs.lastfm_track_influence %]" size="5">
+    [% END %]
+
+    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_ARTIST_MODE" desc="GUIDANCE_LASTFM_ARTIST_MODE_DESC" %]
+        <select class="stdedit" name="pref_lastfm_artist_mode" id="lastfm_artist_mode">
+            <option value="target_share" [% IF prefs.lastfm_artist_mode == 'target_share' %]selected[% END %]>[% "GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE" | string %]</option>
+            <option value="bounded_influence" [% IF prefs.lastfm_artist_mode == 'bounded_influence' %]selected[% END %]>[% "GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED" | string %]</option>
+        </select>
+    [% END %]
+
+    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_ARTIST_LEVEL" desc="GUIDANCE_LASTFM_ARTIST_LEVEL_DESC" %]
+        <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_artist_level" id="lastfm_artist_level" value="[% prefs.lastfm_artist_level %]" size="5">
+    [% END %]
+
     <div id="lastfm-guidance-graph-section">
         <h3>[% "PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH" | string %]</h3>
         <p>[% "PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH_DESC" | string %]</p>
@@ -49,29 +64,28 @@
         [% END %]
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT" desc="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC" %]
-            <select class="stdedit" name="pref_artist_result_limit" id="lastfm-guidance-artist-result-limit">
-                <option value="25" [% IF prefs.artist_result_limit == 25 %]selected[% END %]>25</option>
-                <option value="50" [% IF prefs.artist_result_limit == 50 %]selected[% END %]>50</option>
-                <option value="100" [% IF prefs.artist_result_limit == 100 %]selected[% END %]>100</option>
-            </select>
+            <input type="number" min="1" step="1" class="stdedit" name="pref_artist_result_limit" id="lastfm-guidance-artist-result-limit" value="[% IF prefs.artist_result_limit %][% prefs.artist_result_limit %][% END %]" size="8">
+        [% END %]
+
+        [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_DATA_BUDGET" desc="PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_DESC" %]
+            <input type="number" min="1" max="100" step="1" class="stdedit" name="pref_data_budget_mb" id="lastfm-guidance-data-budget" value="[% prefs.data_budget_mb %]" size="8">
         [% END %]
 
         <div class="settingGroup">
             <div class="prefHead">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS" | string %]</div>
             <div class="prefs">
-                <p id="lastfm-guidance-graph-summary">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE" | string(graph_status.state || 'missing', graph_status.artists || 0, graph_status.artist_observations || 0, graph_status.database_bytes || 0, graph_status.retained_lastfm_bytes || 0) %]</p>
-                <div id="lastfm-guidance-job-status" [% UNLESS graph_job.running || graph_job.progress.phase || graph_job.error %]style="display:none"[% END %]>
+                <p id="lastfm-guidance-graph-summary">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE" | string(graph_status.state || 'missing', graph_status.artists || 0, graph_status.artist_observations || 0, graph_status.database_size || '0 B', graph_status.retained_lastfm_size || '0 B') %]</p>
+                <div id="lastfm-guidance-job-status" [% UNLESS graph_job.running || graph_job.paused %]style="display:none"[% END %]>
                     <table>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_START" | string %]</td><td id="lastfm-guidance-job-start" data-start="[% graph_job.started_at || 0 %]"></td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_DURATION" | string %]</td><td id="lastfm-guidance-job-duration" data-duration="[% graph_job.duration || 0 %]"></td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_STATUS" | string %]</td><td id="lastfm-guidance-job-message">[% graph_job.progress.message %]</td></tr>
-                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_CURRENT_ARTIST" | string %]</td><td id="lastfm-guidance-job-current-artist">[% graph_job.progress.current_artist %]</td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_PROGRESS" | string %]</td><td id="lastfm-guidance-job-progress">[% graph_job.progress.current || 0 %] / [% graph_job.progress.total || 0 %]</td></tr>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_COUNTS" | string %]</td><td id="lastfm-guidance-job-counts">[% graph_job.progress.requests || 0 %] / [% graph_job.progress.cached || 0 %] / [% graph_job.progress.changed || 0 %]</td></tr>
-                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_DATA_USAGE" | string %]</td><td id="lastfm-guidance-job-data-usage">[% graph_job.progress.retained_lastfm_bytes || 0 %] bytes</td></tr>
+                        <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_DATA_USAGE" | string %]</td><td id="lastfm-guidance-job-data-usage">[% graph_job.progress.retained_lastfm_size || '0 B' %]</td></tr>
                     </table>
-                    <p id="lastfm-guidance-job-error" style="color:#c9302c"></p>
                 </div>
+                <p id="lastfm-guidance-job-error" style="color:#c9302c">[% graph_job.error %]</p>
                 <button class="inputbutton" type="button" id="lastfm-guidance-start">[% 'PLUGIN_LASTFMGUIDANCE_START_UPDATE' | string %]</button>
                 <button class="inputbutton" type="button" id="lastfm-guidance-pause" style="display:none">[% 'PLUGIN_LASTFMGUIDANCE_PAUSE_UPDATE' | string %]</button>
                 <button class="inputbutton" type="button" id="lastfm-guidance-resume" style="display:none">[% 'PLUGIN_LASTFMGUIDANCE_RESUME_UPDATE' | string %]</button>
@@ -81,21 +95,6 @@
             </div>
         </div>
     </div>
-
-    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_TRACK_INFLUENCE" desc="GUIDANCE_LASTFM_TRACK_INFLUENCE_DESC" %]
-        <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_track_influence" id="lastfm_track_influence" value="[% prefs.lastfm_track_influence %]" size="5">
-    [% END %]
-
-    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_ARTIST_MODE" desc="GUIDANCE_LASTFM_ARTIST_MODE_DESC" %]
-        <select class="stdedit" name="pref_lastfm_artist_mode" id="lastfm_artist_mode">
-            <option value="target_share" [% IF prefs.lastfm_artist_mode == 'target_share' %]selected[% END %]>[% "GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE" | string %]</option>
-            <option value="bounded_influence" [% IF prefs.lastfm_artist_mode == 'bounded_influence' %]selected[% END %]>[% "GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED" | string %]</option>
-        </select>
-    [% END %]
-
-    [% WRAPPER settingGroup title="GUIDANCE_LASTFM_ARTIST_LEVEL" desc="GUIDANCE_LASTFM_ARTIST_LEVEL_DESC" %]
-        <input type="number" min="0" max="100" step="1" class="stdedit sliderInput_0_100_1" name="pref_lastfm_artist_level" id="lastfm_artist_level" value="[% prefs.lastfm_artist_level %]" size="5">
-    [% END %]
 [% END %]
 
 <script>
@@ -129,6 +128,12 @@
         seconds = parseInt(seconds || 0, 10);
         return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
             .map(function (value) { return String(value).padStart(2, '0'); }).join(':');
+    }
+    function formatBytes(bytes) {
+        bytes = parseInt(bytes || 0, 10);
+        if (bytes >= 1000000) return (bytes / 1000000).toFixed(1) + ' MB';
+        if (bytes >= 1000) return (bytes / 1000).toFixed(1) + ' kB';
+        return bytes + ' B';
     }
     function formatStart(epoch) {
         if (parseInt(epoch || 0, 10) <= 0) return '';
@@ -170,8 +175,7 @@
         if (!result) return;
         graphRunning = parseInt(result.running || 0, 10) === 1;
         var paused = parseInt(result.paused || 0, 10) === 1;
-        var hasError = !!result.error;
-        var hasJob = graphRunning || paused || parseInt(result.start || 0, 10) > 0 || hasError;
+        var hasJob = graphRunning || paused;
         setGraphVisible('lastfm-guidance-job-status', hasJob);
         setGraphVisible('lastfm-guidance-start', !graphRunning && !paused);
         setGraphVisible('lastfm-guidance-pause', graphRunning);
@@ -182,17 +186,16 @@
         if (graphElement('lastfm-guidance-job-start')) graphElement('lastfm-guidance-job-start').textContent = formatStart(result.start);
         if (graphElement('lastfm-guidance-job-duration')) graphElement('lastfm-guidance-job-duration').textContent = formatDuration(result.duration);
         if (graphElement('lastfm-guidance-job-message')) graphElement('lastfm-guidance-job-message').textContent = result.message || '';
-        if (graphElement('lastfm-guidance-job-current-artist')) graphElement('lastfm-guidance-job-current-artist').textContent = result.current_artist || '';
         if (graphElement('lastfm-guidance-job-progress')) graphElement('lastfm-guidance-job-progress').textContent = (result.current || 0) + ' / ' + (result.total || 0);
         if (graphElement('lastfm-guidance-job-counts')) graphElement('lastfm-guidance-job-counts').textContent = (result.requests || 0) + ' / ' + (result.cached || 0) + ' / ' + (result.changed || 0);
-        if (graphElement('lastfm-guidance-job-data-usage')) graphElement('lastfm-guidance-job-data-usage').textContent = (result.retained_lastfm_bytes || 0) + ' bytes';
+        if (graphElement('lastfm-guidance-job-data-usage')) graphElement('lastfm-guidance-job-data-usage').textContent = formatBytes(result.retained_lastfm_bytes);
         if (graphElement('lastfm-guidance-job-error')) graphElement('lastfm-guidance-job-error').textContent = result.error || '';
         if (result.graph_state && graphElement('lastfm-guidance-graph-summary')) {
             graphElement('lastfm-guidance-graph-summary').textContent = '[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS" | string %]'
                 .replace('%10', result.graph_reciprocal_pairs || 0)
                 .replace('%1', result.graph_state).replace('%2', result.graph_artists || 0)
-                .replace('%3', result.graph_observations || 0).replace('%4', result.graph_database_bytes || 0)
-                .replace('%5', result.graph_retained_lastfm_bytes || 0)
+                .replace('%3', result.graph_observations || 0).replace('%4', formatBytes(result.graph_database_bytes))
+                .replace('%5', formatBytes(result.graph_retained_lastfm_bytes))
                 .replace('%6', result.graph_covered_artists || 0).replace('%7', result.graph_library_artists || 0)
                 .replace('%8', result.graph_external_artists || 0).replace('%9', result.graph_artist_edges || 0);
         }

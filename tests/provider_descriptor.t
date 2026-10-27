@@ -73,6 +73,7 @@ is($defaults->{lastfm_artist_level}, 75, 'artist default is available before set
 is($defaults->{retrieval_policy}, 'online_with_cache', 'API-key graph defaults to online read-through');
 is($defaults->{storage_scope}, 'all_returned_artists', 'API-key graph stores all returned artists by default');
 is($defaults->{artist_result_limit}, 25, 'API-key graph defaults to 25 similar artists');
+is($defaults->{data_budget_mb}, 100, 'API-key graph defaults to the 100 MB service cap');
 ok(!exists $controls{retrieval_policy}, 'graph retrieval policy is provider-owned and not host-overridable');
 
 $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
@@ -229,6 +230,7 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
         legacy_cache_path => Plugins::LastFmGuidance::Provider::_legacy_cache_path(),
         retrieval_policy => 'online_with_cache',
         artist_result_limit => 25,
+        budget_bytes => 100_000_000,
         storage_scope => 'all_returned_artists',
         request_deadline_ms => 5000,
         max_concurrent_requests => 2,

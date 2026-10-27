@@ -39,6 +39,7 @@ my $directory = tempdir(CLEANUP => 1);
         return {
             source => 'api_key', retrieval_policy => 'online_with_cache',
             storage_scope => 'all_returned_artists', artist_result_limit => 25,
+            data_budget_mb => 100,
         };
     }
     sub guidance_provider_status_v1 {
@@ -120,6 +121,11 @@ ok(!exists $Proc::Background::OPTIONS->{stdout} && !exists $Proc::Background::OP
     'does not ask Proc::Background to reopen LMS tied output handles');
 ok(-f "$directory/roots.json", 'freezes the library roots before starting native work');
 ok(-f "$directory/request.json", 'publishes a trusted maintenance request');
+open my $request_fh, '<', "$directory/request.json" or die $!;
+my $request = JSON::PP::decode_json(do { local $/; <$request_fh> });
+close $request_fh;
+is($request->{budget_bytes}, 100_000_000,
+    'passes the configured decimal 100 MB retained-data budget to the native scanner');
 
 my $status = Plugins::LastFmGuidance::GraphJobs::status();
 ok($status->{running}, 'reports the child as running');

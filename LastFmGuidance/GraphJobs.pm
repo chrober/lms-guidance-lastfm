@@ -51,6 +51,7 @@ sub start_update {
         retrieval_policy => $defaults->{retrieval_policy},
         storage_scope => $defaults->{storage_scope},
         artist_result_limit => 0 + $defaults->{artist_result_limit},
+        budget_bytes => 0 + $defaults->{data_budget_mb} * 1_000_000,
     };
     _write_json(Plugins::LastFmGuidance::Provider::_graph_request_path(), $request);
     open my $progress, '>>', Plugins::LastFmGuidance::Provider::_graph_progress_path()
@@ -76,10 +77,11 @@ sub start_update {
     $paused = 0;
     $operation = 'sync';
     Plugins::LastFmGuidance::Provider::_log_info(sprintf(
-        'Offline Last.fm library update started: roots=%d, limit=%d, scope=%s',
+        'Offline Last.fm library update started: roots=%d, limit=%s, scope=%s, budget=%d MB',
         scalar(@{$snapshot->{artists} || []}),
-        $defaults->{artist_result_limit},
+        $defaults->{artist_result_limit} || 'unlimited',
         $defaults->{storage_scope},
+        $defaults->{data_budget_mb},
     ));
     return { ok => 1, status => status() };
 }
@@ -122,6 +124,7 @@ sub start_compact {
         legacy_cache_path => Plugins::LastFmGuidance::Provider::_legacy_cache_path(),
         storage_scope => $defaults->{storage_scope},
         artist_result_limit => 0 + $defaults->{artist_result_limit},
+        budget_bytes => 0 + $defaults->{data_budget_mb} * 1_000_000,
     });
     open my $progress, '>>', Plugins::LastFmGuidance::Provider::_graph_progress_path()
         or return { ok => 0, error => 'cannot_open_progress_file' };

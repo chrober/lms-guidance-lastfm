@@ -25,6 +25,7 @@ my %FACTORY_DEFAULTS = (
     retrieval_policy        => 'online_with_cache',
     storage_scope           => 'all_returned_artists',
     artist_result_limit     => 25,
+    data_budget_mb          => 100,
     settings_revision        => 1,
 );
 
@@ -127,9 +128,14 @@ sub guidance_provider_defaults_v1 {
     $defaults{settings_revision} = int($prefs->get('settings_revision') || $FACTORY_DEFAULTS{settings_revision});
     $defaults{retrieval_policy} = _retrieval_policy($prefs->get('retrieval_policy'));
     $defaults{storage_scope} = _storage_scope($prefs->get('storage_scope'));
-    my $artist_result_limit = int($prefs->get('artist_result_limit') || 25);
-    $defaults{artist_result_limit} = $artist_result_limit =~ /^(?:25|50|100)$/
-        ? $artist_result_limit : 25;
+    my $artist_result_limit = $prefs->get('artist_result_limit');
+    $defaults{artist_result_limit} = defined($artist_result_limit) && $artist_result_limit =~ /^\d+$/
+        ? int($artist_result_limit) : 25;
+    my $data_budget_mb = $prefs->get('data_budget_mb');
+    $data_budget_mb = 100 unless defined($data_budget_mb) && $data_budget_mb =~ /^\d+$/;
+    $data_budget_mb = 1 if $data_budget_mb < 1;
+    $data_budget_mb = 100 if $data_budget_mb > 100;
+    $defaults{data_budget_mb} = int($data_budget_mb);
     return \%defaults;
 }
 
@@ -240,6 +246,7 @@ sub guidance_provider_native_spi_config_v1 {
         $options->{retrieval_policy} = $defaults->{retrieval_policy};
         $options->{storage_scope} = $defaults->{storage_scope};
         $options->{artist_result_limit} = 0 + $defaults->{artist_result_limit};
+        $options->{budget_bytes} = 0 + $defaults->{data_budget_mb} * 1_000_000;
         $options->{request_deadline_ms} = 5000;
         $options->{max_concurrent_requests} = 2;
         if (defined $trusted_context->{api_endpoint} && length $trusted_context->{api_endpoint}) {

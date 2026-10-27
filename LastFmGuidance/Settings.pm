@@ -7,7 +7,7 @@ use Slim::Utils::Prefs;
 use Plugins::LastFmGuidance::Provider;
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
-my @PREFS = qw(source api_key lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit);
+my @PREFS = qw(source api_key lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit data_budget_mb);
 
 sub name { return 'PLUGIN_LASTFMGUIDANCE_NAME'; }
 sub page { return 'plugins/LastFmGuidance/settings/lastfmguidance.html'; }
@@ -23,6 +23,10 @@ sub beforeRender {
         require Plugins::LastFmGuidance::GraphJobs;
         $params->{graph_job} = Plugins::LastFmGuidance::GraphJobs::status();
         $params->{graph_status} = Plugins::LastFmGuidance::GraphJobs::graph_status();
+        $params->{graph_status}{database_size} = _format_bytes($params->{graph_status}{database_bytes});
+        $params->{graph_status}{retained_lastfm_size} = _format_bytes($params->{graph_status}{retained_lastfm_bytes});
+        $params->{graph_job}{progress}{retained_lastfm_size} =
+            _format_bytes($params->{graph_job}{progress}{retained_lastfm_bytes});
     }
     else {
         $params->{graph_job} = {};
@@ -53,7 +57,13 @@ sub handler {
             $value = Plugins::LastFmGuidance::Provider::_storage_scope($value);
         }
         elsif ($key eq 'artist_result_limit') {
-            $value = $value =~ /^(?:25|50|100)$/ ? int($value) : 25;
+            $value = !defined($value) || $value eq '' ? 0
+                : $value =~ /^\d+$/ && int($value) > 0 ? int($value) : 25;
+        }
+        elsif ($key eq 'data_budget_mb') {
+            $value = $value =~ /^\d+$/ ? int($value) : 100;
+            $value = 1 if $value < 1;
+            $value = 100 if $value > 100;
         }
         elsif ($key ne 'api_key') {
             $value = _clamp($key, $value);
@@ -65,6 +75,14 @@ sub handler {
         $prefs->set('settings_revision', $revision + 1);
     }
     return $class->SUPER::handler($client, $params);
+}
+
+sub _format_bytes {
+    my ($bytes) = @_;
+    $bytes = 0 unless defined $bytes && $bytes =~ /^\d+(?:\.\d+)?$/;
+    return sprintf('%.1f MB', $bytes / 1_000_000) if $bytes >= 1_000_000;
+    return sprintf('%.1f kB', $bytes / 1_000) if $bytes >= 1_000;
+    return sprintf('%d B', $bytes);
 }
 
 sub _clamp {

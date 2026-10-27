@@ -49,6 +49,12 @@ like($template_source, qr/lastfm-guidance-source/, 'settings page identifies the
 like($template_source, qr/pref_retrieval_policy/, 'settings page owns the API-key retrieval policy');
 like($template_source, qr/pref_storage_scope/, 'settings page owns graph storage scope');
 like($template_source, qr/pref_artist_result_limit/, 'settings page owns the stored similar-artist limit');
+like($template_source, qr/type="number"[^>]+name="pref_artist_result_limit"/,
+    'stored similar-artist limit is a numeric input');
+unlike($template_source, qr/<select[^>]+name="pref_artist_result_limit"/,
+    'stored similar-artist limit is not a fixed choice list');
+like($template_source, qr/<input(?=[^>]+name="pref_data_budget_mb")(?=[^>]+max="100")[^>]*>/,
+    'retained Last.fm data budget is configurable up to the service limit');
 like($template_source, qr/lastfm-guidance-start/, 'settings page exposes an explicit full graph update action');
 like($template_source, qr/lastfmguidance.*graph.*action/s,
     'settings page controls the maintenance job through the plugin JSON-RPC command');
@@ -66,22 +72,30 @@ like($template_source, qr/data-start=.*graph_job\.started_at.*data-duration=.*gr
     'server-rendered job timing is exposed for immediate local formatting');
 like($template_source, qr/toLocaleDateString\(\).*toLocaleTimeString\(\)/s,
     'job start time follows the localized BlissMixer date and time format');
-like($template_source, qr/hasError.*result\.error.*hasJob.*hasError/s,
-    'settings page keeps an early native-start error visible without a running job');
-like($template_source, qr/graph_job\.running.*graph_job\.progress\.phase.*graph_job\.error/s,
-    'a page reload also renders a recorded native-start error');
+like($template_source, qr/id="lastfm-guidance-job-error"[^>]*>\[% graph_job\.error %\]/,
+    'a page reload renders a recorded native-start error outside the live fields');
+like($template_source, qr/lastfm-guidance-job-error.*result\.error/s,
+    'settings page keeps an early native-start error visible without live fields');
 like($template_source, qr/lastfm-guidance-graph-section/, 'graph controls have API-key-only conditional visibility');
-like($template_source, qr/graph_status\.retained_lastfm_bytes/,
-    'initial graph status renders retained Last.fm data bytes');
+like($template_source, qr/graph_status\.retained_lastfm_size/,
+    'initial graph status renders preformatted retained Last.fm data size');
 like($template_source, qr/result\.graph_retained_lastfm_bytes/,
     'live graph status renders retained Last.fm data bytes');
-like($template_source, qr/graph_job\.progress\.current_artist/,
-    'initial graph job status renders the artist currently being fetched');
-like($template_source, qr/result\.current_artist/,
-    'live graph job status updates the artist currently being fetched');
-like($template_source, qr/graph_job\.progress\.retained_lastfm_bytes/,
-    'initial graph job status renders live retained Last.fm data usage');
-like($template_source, qr/graph_status\.database_bytes/,
-    'initial graph status retains the separate physical SQLite byte count');
+like($template_source, qr/function formatBytes.*1000000.*MB.*1000.*kB/s,
+    'byte counts are rendered with human-readable decimal units');
+unlike($template_source, qr/lastfm-guidance-job-current-artist/,
+    'the current artist is not repeated in a separate status row');
+like($template_source, qr/graph_job\.progress\.retained_lastfm_size/,
+    'initial graph job status renders preformatted live retained Last.fm data usage');
+like($template_source, qr/graph_status\.database_size/,
+    'initial graph status retains the separate formatted physical SQLite size');
+like($template_source, qr/name="pref_lastfm_artist_level".*id="lastfm-guidance-graph-section"/s,
+    'offline graph controls follow the complete default guidance policy');
+like($template_source, qr/UNLESS graph_job\.running \|\| graph_job\.paused/,
+    'server rendering hides live job details unless maintenance is active');
+like($template_source, qr/var hasJob = graphRunning \|\| paused;/,
+    'live rendering hides completed job details once maintenance stops');
+unlike($template_source, qr/hasJob = [^;\r\n]*result\.start/,
+    'a completed job start timestamp does not keep live details visible');
 
 done_testing;
