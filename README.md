@@ -129,6 +129,15 @@ network I/O. Missing graph entries, invalid responses, rate limits, timeouts, an
 offline operation degrade to partial or neutral guidance rather than blocking
 the Bliss result.
 
+Direct artist lookups also refresh local library membership independently of the
+host that requested them. This reads the Lyrion library locally and does not
+start a bulk Last.fm update. The full membership refresh runs in the background;
+the local-artists-only scope first checks returned artists against the current
+local library before saving results, so newly added artists are not incorrectly
+filtered out. If the local
+library cannot be read, local-only results are not persisted against stale
+membership; the current lookup can still supply guidance for that session.
+
 ## Offline artist graph and manual update
 
 When **API Key** is selected, the settings page also owns the offline graph

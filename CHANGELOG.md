@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 - 2026-10-27
+
+- Refresh Lyrion artist membership in the background after direct artist lookups,
+  independently of the host, without starting a bulk Last.fm update.
+- Check current library membership before persisting local-only results, while
+  running the full reconciliation at low CPU priority on Unix systems.
+- Bundle native `bliss-guidance-lastfm` 0.2.1.
+
 ## 0.3.0 - 2026-10-27
 
 - Add a versioned, MBID-first SQLite artist-similarity graph for the API-key

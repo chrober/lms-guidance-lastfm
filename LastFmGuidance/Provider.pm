@@ -253,6 +253,8 @@ sub guidance_provider_native_spi_config_v1 {
     }
     else {
         $options->{store_path} = _graph_store_path();
+        my $library_db = _library_db_path();
+        $options->{library_db_path} = $library_db if length $library_db;
         $options->{legacy_cache_path} = _legacy_cache_path();
         $options->{retrieval_policy} = $defaults->{retrieval_policy};
         $options->{storage_scope} = $defaults->{storage_scope};
@@ -698,6 +700,11 @@ sub _cache_root {
 }
 
 sub _graph_store_path { return catfile(_cache_root(), 'lastfm-guidance.sqlite'); }
+
+sub _library_db_path {
+    return '' if eval { require Slim::Music::Import; Slim::Music::Import->stillScanning };
+    return eval { require Slim::Utils::SQLiteHelper; Slim::Utils::SQLiteHelper->dbFile('library.db') } || '';
+}
 sub _legacy_cache_path { return catfile(_cache_root(), 'lastfm-guidance-v1.json'); }
 sub _root_snapshot_path { return catfile(_cache_root(), 'library-artist-roots-v1.json'); }
 sub _graph_request_path { return catfile(_cache_root(), 'graph-request-v1.json'); }

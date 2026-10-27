@@ -216,6 +216,7 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
     local *Plugins::LastFmGuidance::Provider::_provider_status_for_source = sub {
         return { available => 1, program => '/trusted/bin/bliss-guidance-lastfm' };
     };
+    local *Plugins::LastFmGuidance::Provider::_library_db_path = sub { return '/trusted/library.db' };
     $Slim::Utils::Prefs::PREFS->set(source => 'api_key');
     $Slim::Utils::Prefs::PREFS->set(api_key => 'test-direct-api-key');
     my $config = Plugins::LastFmGuidance::Provider::guidance_provider_native_spi_config_v1(
@@ -231,6 +232,7 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
     is_deeply($config->{options}, {
         acquisition_mode => 'direct',
         store_path => Plugins::LastFmGuidance::Provider::_graph_store_path(),
+        library_db_path => '/trusted/library.db',
         legacy_cache_path => Plugins::LastFmGuidance::Provider::_legacy_cache_path(),
         retrieval_policy => 'online_with_cache',
         artist_result_limit => 25,
