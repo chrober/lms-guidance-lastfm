@@ -29,9 +29,17 @@
     [% END %]
 
     <div id="lastfm-guidance-api-key-group">
+        [% WRAPPER settingGroup title="GUIDANCE_LASTFM_API_KEY_SOURCE" desc="GUIDANCE_LASTFM_API_KEY_SOURCE_DESC" %]
+            <select class="stdedit" name="pref_api_key_source" id="lastfm-guidance-api-key-source">
+                <option value="provider" [% IF prefs.api_key_source != 'lastmix' %]selected[% END %]>[% "GUIDANCE_LASTFM_API_KEY_SOURCE_PROVIDER" | string %]</option>
+                <option value="lastmix" [% IF prefs.api_key_source == 'lastmix' %]selected[% ELSIF !lastmix_key_available %]disabled[% END %]>[% IF lastmix_key_available %][% "GUIDANCE_LASTFM_API_KEY_SOURCE_LASTMIX" | string %][% ELSE %][% "GUIDANCE_LASTFM_API_KEY_SOURCE_LASTMIX_UNAVAILABLE" | string %][% END %]</option>
+            </select>
+        [% END %]
+        <div id="lastfm-guidance-own-key-group">
         [% WRAPPER settingGroup title="GUIDANCE_LASTFM_API_KEY" desc="GUIDANCE_LASTFM_API_KEY_DESC" %]
             <input type="text" class="stdedit" name="pref_api_key" id="lastfm-guidance-api-key" value="[% prefs.api_key | html %]" size="42" autocomplete="off" spellcheck="false">
         [% END %]
+        </div>
     </div>
 
     [% WRAPPER settingGroup title="GUIDANCE_LASTFM_TRACK_INFLUENCE" desc="GUIDANCE_LASTFM_TRACK_INFLUENCE_DESC" %]
@@ -145,6 +153,8 @@
     bindSection('lastfm-guidance-graph-content');
     var source = document.getElementById('lastfm-guidance-source');
     var apiKey = document.getElementById('lastfm-guidance-api-key-group');
+    var keySource = document.getElementById('lastfm-guidance-api-key-source');
+    var ownKey = document.getElementById('lastfm-guidance-own-key-group');
     var graph = document.getElementById('lastfm-guidance-graph-section');
     var budget = document.getElementById('lastfm-guidance-data-budget');
     var budgetWarning = document.getElementById('lastfm-guidance-budget-warning');
@@ -167,6 +177,7 @@
     if (!source || !apiKey || !graph) return;
     function refresh() {
         apiKey.style.display = source.value === 'api_key' ? '' : 'none';
+        if (keySource && ownKey) ownKey.style.display = keySource.value === 'provider' ? '' : 'none';
         graph.style.display = source.value === 'api_key' ? '' : 'none';
         if (budget && budgetWarning && budgetConfirm) updateBudgetWarning();
         if (source.value === 'api_key') {
@@ -177,6 +188,7 @@
         }
     }
     source.addEventListener('change', refresh);
+    if (keySource) keySource.addEventListener('change', refresh);
 
     function graphElement(id) { return document.getElementById(id); }
     function setGraphVisible(id, visible) {

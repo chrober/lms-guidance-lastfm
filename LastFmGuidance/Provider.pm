@@ -19,6 +19,7 @@ my $log;
 my %FACTORY_DEFAULTS = (
     source                   => 'lastmix',
     api_key                  => '',
+    api_key_source           => 'provider',
     lastfm_track_influence   => 25,
     lastfm_artist_mode       => 'target_share',
     lastfm_artist_level      => 75,
@@ -713,7 +714,17 @@ sub _graph_cancel_path { return catfile(_cache_root(), 'graph-cancel'); }
 
 sub _api_key {
     init_preferences();
-    return $prefs->get('api_key') || '';
+    my $source = $prefs->get('api_key_source') || 'provider';
+    my $key;
+    if ($source eq 'lastmix') {
+        $key = Slim::Utils::Prefs::preferences('plugin.lastmix')->get('apiKey');
+    }
+    elsif ($source eq 'provider') {
+        $key = $prefs->get('api_key');
+    }
+    return '' unless defined $key && $key =~ /\S/;
+    $key =~ s/^\s+|\s+$//g;
+    return $key;
 }
 
 sub _lastmix_available {

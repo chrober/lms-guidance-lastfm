@@ -14,8 +14,9 @@ use lib '.';
 
     package Slim::Utils::Prefs;
     our $PREFS = TestPrefs->new;
+    our $LASTMIX_PREFS = TestPrefs->new;
     sub import { }
-    sub preferences { return $PREFS }
+    sub preferences { return $_[0] eq 'plugin.lastmix' ? $LASTMIX_PREFS : $PREFS }
     $INC{'Slim/Utils/Prefs.pm'} = __FILE__;
 
     package TestLog;
@@ -93,6 +94,27 @@ ok(!exists $defaults->{api_key}, 'shared defaults do not expose the stored API k
 ok(!Plugins::LastFmGuidance::Provider::_lastmix_available(), 'missing LastMix is detected rather than silently switching source');
 @Slim::Utils::PluginManager::ENABLED = ('Plugins::LastMix::Plugin');
 ok(Plugins::LastFmGuidance::Provider::_lastmix_available(), 'enabled LastMix is detected as the selected source backend');
+{
+    $Slim::Utils::Prefs::PREFS->set(api_key_source => 'lastmix');
+    $Slim::Utils::Prefs::LASTMIX_PREFS->set(apiKey => 'lastmix-custom-key');
+    $Slim::Utils::Prefs::LASTMIX_PREFS->set(useCustomApiKey => 0);
+    is_deeply(Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {}),
+        { BLISS_GUIDANCE_LASTFM_API_KEY => 'lastmix-custom-key' },
+        'direct acquisition uses the configured LastMix key even when LastMix does not use it');
+    $Slim::Utils::Prefs::LASTMIX_PREFS->set(apiKey => 'changed-key');
+    is(Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {})->{BLISS_GUIDANCE_LASTFM_API_KEY},
+        'changed-key', 'reads the current LastMix key rather than copying it');
+    $Slim::Utils::Prefs::LASTMIX_PREFS->set(apiKey => '  ');
+    is_deeply(Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {}), {},
+        'a blank LastMix key does not silently fall back to the provider key');
+    $Slim::Utils::Prefs::LASTMIX_PREFS->set(apiKey => 'lastmix-custom-key');
+    @Slim::Utils::PluginManager::ENABLED = ();
+    is_deeply(Plugins::LastFmGuidance::Provider::guidance_provider_process_environment_v1({ source => 'api_key' }, {}),
+        { BLISS_GUIDANCE_LASTFM_API_KEY => 'lastmix-custom-key' },
+        'direct acquisition can use the saved key even when LastMix is not enabled');
+    @Slim::Utils::PluginManager::ENABLED = ('Plugins::LastMix::Plugin');
+    $Slim::Utils::Prefs::PREFS->set(api_key_source => 'provider');
+}
 $Slim::Utils::Prefs::PREFS->set(source => 'lastmix');
 
 {
@@ -194,6 +216,14 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
     is(Plugins::LastFmGuidance::Provider::guidance_provider_status_v1()->{reason}, 'native_binary_incompatible',
         'an old native provider cannot silently ignore a configured refresh target');
     $Slim::Utils::Prefs::PREFS->set(artist_refresh_days => 0);
+    $Slim::Utils::Prefs::PREFS->set(api_key_source => 'lastmix');
+    $Slim::Utils::Prefs::LASTMIX_PREFS->set(apiKey => '');
+    is(Plugins::LastFmGuidance::Provider::guidance_provider_status_v1()->{reason}, 'api_key_missing',
+        'selected LastMix key source is unavailable when the custom key is missing, even with a provider key configured');
+    $Slim::Utils::Prefs::LASTMIX_PREFS->set(apiKey => 'lastmix-custom-key');
+    ok(Plugins::LastFmGuidance::Provider::guidance_provider_status_v1()->{available},
+        'provider status accepts a configured LastMix custom key');
+    $Slim::Utils::Prefs::PREFS->set(api_key_source => 'provider');
 }
 
 {

@@ -16,6 +16,12 @@ Choose one provider-owned source on its settings page:
   environment; it never enters request JSON, artifacts, logs, or preview
   results.
 
+  For this source, choose a key configured in this provider or the custom API
+  key saved in LastMix. The saved custom key must be non-empty; LastMix need
+  not be enabled, and its custom-key checkbox and shared secret are not needed. The key
+  is read when needed rather than copied, and both plugins share its request
+  limits. A missing selected key does not trigger a fallback to another key.
+
 With **LastMix**, the Lyrion provider obtains observations, the host resolves
 them to the frozen local candidate inventory, and the native provider consumes
 the resulting artifact. With **API Key**, the native provider queries only the
@@ -47,6 +53,7 @@ flowchart LR
     Prefs --> Perl["LastFmGuidance/Provider.pm"]
     Host["Compatible Bliss host"] -->|descriptor, defaults, policy| Perl
     LastMix["LastMix plugin / LastMix API"] -->|similar-track and similar-artist observations| Perl
+    LastMixPrefs["Lyrion preferences: plugin.lastmix"] -.->|optional custom API key| Perl
     Perl -->|writes JSON and computes SHA-256| Artifact["Job artifact: resolved-lastfm-evidence-v1"]
     Perl -->|native config and artifact descriptor| Host
     Host -->|SPI prepare and score JSONL| Native["bliss-guidance-lastfm executable"]
@@ -255,4 +262,4 @@ separately when you want to use the LastMix source.
 
 Configure the source and provider-owned guidance defaults on the provider's
 own settings page. Compatible hosts may save their own source and guidance
-overrides; the API key itself always remains private to this provider.
+overrides; the API key is never exposed to host settings or request artifacts.

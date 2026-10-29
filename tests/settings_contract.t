@@ -56,6 +56,8 @@ my $template_source = do { local $/; <$template> };
 like($template_source, qr/settings\/footer\.html/, 'settings template includes the standard explicit Save footer');
 like($template_source, qr/pref_source/, 'settings page renders the LastMix/API Key source selector');
 like($template_source, qr/pref_api_key/, 'settings page contains the conditional API key field');
+like($template_source, qr/name="pref_api_key_source"/, 'settings page offers the separate API-key source choice');
+like($template_source, qr/keySource\.addEventListener\('change', refresh\)/, 'changing API-key source refreshes field visibility immediately');
 like($template_source, qr/<input(?=[^>]*type="text")(?=[^>]*name="pref_api_key")(?=[^>]*autocomplete="off")[^>]*>/,
     'API key is a text field and is not interpreted as a login password');
 like($template_source, qr/prefs\.api_key\s*\|\s*html/, 'API key value is escaped in HTML');
@@ -83,6 +85,12 @@ like($template_source, qr/lastfm-guidance-budget-warning.*last\.fm\/api\/tos.*la
 like($template_source, qr/setCustomValidity\(needsConfirmation/,
     'an unconfirmed higher limit prevents saving');
 my $settings_prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
+Plugins::LastFmGuidance::Settings->handler(undef, { saveSettings => 1, pref_api_key_source => 'lastmix' });
+is($settings_prefs->get('api_key_source'), 'lastmix', 'saving preserves the LastMix API-key source');
+Plugins::LastFmGuidance::Settings->handler(undef, { saveSettings => 1, pref_api_key_source => 'provider' });
+is($settings_prefs->get('api_key_source'), 'provider', 'saving can switch back to the provider API key');
+Plugins::LastFmGuidance::Settings->handler(undef, { saveSettings => 1, pref_api_key_source => 'invalid' });
+is($settings_prefs->get('api_key_source'), 'provider', 'invalid key-source input uses the established provider-key default');
 Plugins::LastFmGuidance::Settings->handler(undef, { saveSettings => 1, pref_data_budget_mb => 250 });
 is($settings_prefs->get('data_budget_mb'), 250, 'saving preserves a limit above 100 MB');
 is(Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1()->{data_budget_mb}, 250,

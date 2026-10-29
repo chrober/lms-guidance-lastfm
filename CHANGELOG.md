@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3 - 2026-10-29
+
+- Allow direct Last.fm guidance and offline graph maintenance to use the custom
+  API key saved in LastMix, without copying it or requiring a shared secret.
+- Keep the LastMix and API Key acquisition choices separate and retain the
+  existing provider-owned key as the default.
+
 ## 0.3.2 - 2026-10-29
 
 - Clean up out-of-scope artist queries and orphaned artist records when the

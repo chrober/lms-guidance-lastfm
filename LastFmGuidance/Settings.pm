@@ -7,7 +7,7 @@ use Slim::Utils::Prefs;
 use Plugins::LastFmGuidance::Provider;
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
-my @PREFS = qw(source api_key lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit data_budget_mb artist_refresh_days empty_artist_refresh_days);
+my @PREFS = qw(source api_key api_key_source lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit data_budget_mb artist_refresh_days empty_artist_refresh_days);
 
 sub name { return 'PLUGIN_LASTFMGUIDANCE_NAME'; }
 sub page { return 'plugins/LastFmGuidance/settings/lastfmguidance.html'; }
@@ -19,6 +19,8 @@ sub beforeRender {
     $params->{provider_defaults} = Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1();
     $params->{provider_status} = Plugins::LastFmGuidance::Provider::guidance_provider_status_v1();
     $params->{lastmix_available} = Plugins::LastFmGuidance::Provider::_lastmix_available() ? 1 : 0;
+    my $lastmix_key = Slim::Utils::Prefs::preferences('plugin.lastmix')->get('apiKey');
+    $params->{lastmix_key_available} = defined($lastmix_key) && $lastmix_key =~ /\S/ ? 1 : 0;
     if (($params->{provider_defaults}{source} || '') eq 'api_key') {
         require Plugins::LastFmGuidance::GraphJobs;
         $params->{graph_job} = Plugins::LastFmGuidance::GraphJobs::status();
@@ -46,6 +48,9 @@ sub handler {
         my $value = $params->{$param};
         if ($key eq 'source') {
             $value = Plugins::LastFmGuidance::Provider::_source($value);
+        }
+        elsif ($key eq 'api_key_source') {
+            $value = defined($value) && $value eq 'lastmix' ? 'lastmix' : 'provider';
         }
         elsif ($key eq 'lastfm_artist_mode') {
             $value = Plugins::LastFmGuidance::Provider::_artist_mode($value);

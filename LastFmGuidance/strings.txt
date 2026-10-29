@@ -43,6 +43,21 @@ GUIDANCE_LASTFM_SOURCE_API_KEY
 GUIDANCE_LASTFM_API_KEY
 	EN	Last.fm API key
 
+GUIDANCE_LASTFM_API_KEY_SOURCE
+	EN	API key from
+
+GUIDANCE_LASTFM_API_KEY_SOURCE_DESC
+	EN	Use a key configured here or the custom key saved in LastMix. The saved LastMix key must be non-empty; LastMix does not need to be enabled and its custom-key checkbox may be off. The shared secret is not needed. Both plugins share the key's request limits.
+
+GUIDANCE_LASTFM_API_KEY_SOURCE_PROVIDER
+	EN	Bliss Guidance: Last.fm
+
+GUIDANCE_LASTFM_API_KEY_SOURCE_LASTMIX
+	EN	LastMix
+
+GUIDANCE_LASTFM_API_KEY_SOURCE_LASTMIX_UNAVAILABLE
+	EN	LastMix (no custom API key configured)
+
 GUIDANCE_LASTFM_API_KEY_DESC
 	EN	Create an API account at last.fm/api/account/create. The key is used only to start the native provider and is not included in optimizer requests, artifacts, logs, or preview results.
 
