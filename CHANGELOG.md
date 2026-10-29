@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2 - 2026-10-29
+
+- Clean up out-of-scope artist queries and orphaned artist records when the
+  stored artist scope is limited to the Lyrion library.
+- Show progress during cleanup and improve handling of concurrent database
+  writers.
+- Bundle native `bliss-guidance-lastfm` 0.2.2.
+
 ## 0.3.1 - 2026-10-27
 
 - Refresh Lyrion artist membership in the background after direct artist lookups,
