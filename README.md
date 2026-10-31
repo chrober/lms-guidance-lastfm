@@ -1,265 +1,173 @@
 # Bliss Guidance: Last.fm
 
-`lms-guidance-lastfm` is an independently installable, passive Lyrion guidance
-provider in the **Bliss Guidance** family. It contributes bounded Last.fm
-similar-track and similar-artist evidence when a compatible Bliss host invokes
-it. It does not create mixes, reorder tracks, or control playback by itself;
-another plugin must discover, enable, and use it.
+**Bring Last.fm's music knowledge into your Bliss mixes.**
 
-## How it works
+**Bliss Guidance: Last.fm** is an optional plugin for [Lyrion Music Server (LMS)](https://lyrion.org/) that contributes Last.fm **similar-track** and **similar-artist** information to [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss) and [Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab).
 
-Choose one provider-owned source on its settings page:
+**Bliss-first by design:** The host first uses Bliss acoustic similarity to identify suitable candidate tracks. Only then does Last.fm Guidance influence how those already eligible tracks are ranked. It cannot introduce new candidates or override repeat rules. This differs from [LastMix](https://github.com/michaelherger/LastMix), which can create mixes based on Last.fm recommendations. Last.fm Guidance contributes **additional guidance** rather than creating mixes or controlling playback by itself.
 
-- **LastMix** uses the installed LastMix plugin and remains unavailable until that plugin is installed.
-- **API Key** lets the native provider acquire and persist Last.fm relations
-  during SPI preparation. The key is passed only through the child-process
-  environment; it never enters request JSON, artifacts, logs, or preview
-  results.
+As an extra benefit, you can store Last.fm **artist similarity** information locally for offline-friendly listening, such as running Lyrion on a Raspberry Pi while travelling.
 
-  For this source, choose a key configured in this provider or the custom API
-  key saved in LastMix. The saved custom key must be non-empty; LastMix need
-  not be enabled, and its custom-key checkbox and shared secret are not needed. The key
-  is read when needed rather than copied, and both plugins share its request
-  limits. A missing selected key does not trigger a fallback to another key.
+## What can I do with it?
 
-With **LastMix**, the Lyrion provider obtains observations, the host resolves
-them to the frozen local candidate inventory, and the native provider consumes
-the resulting artifact. With **API Key**, the native provider queries only the
-frozen source anchors during `prepare`, persists complete observations in its
-SQLite graph, and then
-scores the host's Bliss-qualified candidate batches without network access.
+### Discover musically related tracks and artists
 
-Hosts discover the provider automatically but default it to disabled. Their
-provider settings use these defaults unless a host explicitly overrides an
-eligible policy control.
+*"I want Bliss to consider more than how two recordings sound."*
 
-The compatible host plugins currently include
-[Better Call Bliss](https://github.com/chrober/lms-better-call-bliss) and
-[Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab). Both discover
-this provider but leave it disabled until you explicitly enable it.
+Use Last.fm **similar-track** and **similar-artist** relationships as additional evidence when a compatible Bliss plugin chooses music. This can help the host favor tracks that are related according to Last.fm while remaining within the selection already allowed by Bliss.
 
-The native implementation is
-[`bliss-guidance-lastfm`](https://github.com/chrober/bliss-guidance-lastfm).
-The native protocol is owned by
-[`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi).
-Provider conventions and UI rules are documented in
-[`lms-bliss-guidance-provider-kit`](https://github.com/chrober/lms-bliss-guidance-provider-kit).
+### Add another perspective to Don't Stop the Music
 
-## Architecture
+*"I enjoy Bliss-based automatic mixes, but I'd like Last.fm's artist and track relationships to influence what plays next."*
 
-```mermaid
-flowchart LR
-    Settings["LastFmGuidance/HTML/.../lastfmguidance.html"] --> Prefs["Lyrion preferences: plugin.guidancelastfm"]
-    Prefs --> Perl["LastFmGuidance/Provider.pm"]
-    Host["Compatible Bliss host"] -->|descriptor, defaults, policy| Perl
-    LastMix["LastMix plugin / LastMix API"] -->|similar-track and similar-artist observations| Perl
-    LastMixPrefs["Lyrion preferences: plugin.lastmix"] -.->|optional custom API key| Perl
-    Perl -->|writes JSON and computes SHA-256| Artifact["Job artifact: resolved-lastfm-evidence-v1"]
-    Perl -->|native config and artifact descriptor| Host
-    Host -->|SPI prepare and score JSONL| Native["bliss-guidance-lastfm executable"]
-    Artifact -.->|trusted, hash-bound input| Native
-    Native -->|direct prepare only| LastFm["Last.fm API"]
-    Native <--> Graph["Provider SQLite graph: lastfm-guidance.sqlite"]
-    Perl --> Roots["Frozen library-artist roots JSON"]
-    Perl --> Request["Trusted graph request JSON"]
-    Roots -.-> Native
-    Request -.-> Native
-    Native --> Progress["Versioned graph progress JSONL"]
-    Progress -.-> Perl
-    Native -->|bounded guidance and selection_trace_v1| Host
-    Host -->|accepted result| Sinks["preview report / saved playlist / player queue"]
-    Prefs -.->|API key in launch environment only| Native
-```
+Enable the Last.fm provider in **Bliss Mixer Lab** and let it contribute to the Lab's separate **Bliss (Lab)** DSTM provider.
 
-The provider-owned files and streams are:
+### Guide playlist and player-queue optimization
 
-- `LastFmGuidance/Plugin.pm` exposes the discoverable provider, while
-  `LastFmGuidance/Settings.pm` registers its settings page.
-- `LastFmGuidance/HTML/EN/plugins/LastFmGuidance/settings/lastfmguidance.html`
-  renders that page; persisted values live in the Lyrion
-  `plugin.guidancelastfm` preference namespace.
-- `LastFmGuidance/Provider.pm` publishes the descriptor and defaults, resolves
-  host/job overrides, calls LastMix in LastMix mode, and writes the temporary
-  `resolved-lastfm-evidence-v1` JSON artifact supplied by the host. In API-key
-  mode it instead supplies only provider-owned graph paths and non-secret
-  request limits plus the launch-only environment variable.
-- `bliss-guidance-lastfm` reads that artifact and the bounded candidate/context
-  messages from SPI JSONL on stdin, then returns bounded guidance,
-  `selection_trace_v1`, and diagnostics on stdout. There is no separate
-  `prepare.options` file: native options are part of the SPI `prepare` message.
-- The host consumes the response and is the only component that writes preview
-  results, playlists, or player queues.
+*"I'm improving a playlist with Better Call Bliss and want to use related-music information as well as acoustic similarity."*
 
-## Runtime flow
+Enable the provider in **Better Call Bliss** to add Last.fm evidence to its route and playlist scoring, subject to the host's supported settings and eligibility rules.
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant H as Bliss host
-    participant P as Last.fm provider plugin
-    participant L as LastMix
-    participant A as Last.fm API
-    participant F as resolved-lastfm-evidence-v1 JSON
-    participant C as Provider SQLite graph
-    participant N as Native provider
-    participant S as Host result sinks
+### Keep artist relationships available when offline
 
-    U->>H: Enable provider and choose source/policy
-    H->>P: Read descriptor, defaults, and status
-    P-->>H: Provider metadata and effective defaults
-    alt LastMix source
-        H->>P: Acquire artifacts(source tracks, candidates, artifact path)
-        P->>L: Query similar tracks and similar artists
-        L-->>P: Observations or tolerated failures
-        P->>F: Write resolved candidate edges
-        P->>F: Reopen, hash, and verify artifact
-        P-->>H: Artifact path, SHA-256, statistics
-        H->>N: prepare JSONL(options, anchors, artifact descriptor)
-        N->>F: Read and verify hash-bound evidence
-    else API Key source
-        P-->>H: Non-secret graph paths, policy, and request limits
-        P-->>N: API key in child-process environment
-        H->>N: prepare JSONL(options, frozen anchors)
-        N->>C: Read fresh stored relations
-        N->>A: Fetch missing or expired anchor relations
-        A-->>N: Similar tracks and artists or tolerated failures
-        N->>C: Commit refreshed relations transactionally
-    end
-    H->>N: score JSONL(anchors, bounded candidates)
-    N-->>H: Guidance, selection_trace_v1, diagnostics
-    H->>S: Combine with Bliss and publish only after acceptance
-```
+*"I take my Raspberry Pi music server with me and won't always have an internet connection."*
 
-In **API Key** mode no LastMix artifact is created. Remote requests are limited
-to `prepare`; `score` is deterministic for the prepared session and performs no
-network I/O. Missing graph entries, invalid responses, rate limits, timeouts, and
-offline operation degrade to partial or neutral guidance rather than blocking
-the Bliss result.
+With the **API Key** source, you can download artist similarity information for your library while connected to the internet and retain it locally. **Offline preferred** can then use previously stored artist relationships when remote access is unavailable. This is a secondary feature, not a prerequisite for using the provider.
 
-Direct artist lookups also refresh local library membership independently of the
-host that requested them. This reads the Lyrion library locally and does not
-start a bulk Last.fm update. The full membership refresh runs in the background;
-the local-artists-only scope first checks returned artists against the current
-local library before saving results, so newly added artists are not incorrectly
-filtered out. If the local
-library cannot be read, local-only results are not persisted against stale
-membership; the current lookup can still supply guidance for that session.
+## Key features
 
-## Offline artist graph and manual update
+- **Similar-track guidance:** Last.fm's recording-level relationships can influence the host's selection.
+- **Similar-artist guidance:** Artist relationships offer a complementary view of musical similarity.
+- **Two sources:** Reuse information from the separately installed **[LastMix](https://github.com/michaelherger/LastMix)** plugin, or query Last.fm directly with an **API Key**.
+- **Local artist-similarity library:** With the API Key source, fetch and store artist relationships for use across sessions, including offline-preferred use.
+- **Background updates and maintenance:** Inspect artist-graph coverage, update locally stored data, pause/resume or cancel updates, compact storage, or delete the graph with confirmation.
+- **Host-controlled guidance:** Each compatible Bliss host discovers the provider but keeps it disabled until you enable it.
+- **Graceful fallback:** Missing Last.fm information, API errors, rate limits, or loss of network access do not prevent Bliss-only music selection.
 
-When **API Key** is selected, the settings page also owns the offline graph
-policy, storage scope, and the number of similar artists requested per source.
-It shows graph coverage, physical SQLite storage, and the separately accounted
-retained Last.fm data size, and can start a full library-artist update.
-Optional refresh targets control when results and empty results are rechecked,
-using the last successful validation time. Empty fields use Last.fm freshness
-headers, falling back to 30 days for results and 7 days for empty results. A
-custom target applies to both manual updates and direct guidance preparation;
-it does not schedule scans. Existing HTTP validators are used for revalidation.
-The current cache implementation does not yet handle every HTTP cache directive.
-The update:
+## How it fits into the Bliss ecosystem
 
-- snapshots distinct local Lyrion contributors with their available Artist
-  MBIDs;
-- runs native synchronization asynchronously, with the API key present only in
-  the child environment;
-- reports start time, duration, current/total artists, request/cache/change
-  counts, rate-limit pauses, errors, and completion without reloading the
-  settings page; and
-- supports pause/resume, cancellation, compaction, and confirmed deletion.
+| Component | What it contributes | Required? |
+| --- | --- | --- |
+| [Bliss Mixer](https://github.com/CDrummond/lms-blissmixer) | Acoustic library analysis (`bliss.db`) and base mixing preferences for the compatible hosts | Required by host; not by this provider directly |
+| [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss) | Playlist and player-queue optimization that can use Last.fm guidance | One of the two compatible hosts |
+| [Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab) | Experimental **Bliss (Lab)** Don't Stop the Music mixes that can use Last.fm guidance | One of the two compatible hosts |
+| [Library Signals](https://github.com/chrober/lms-guidance-library-signals) | Separate optional guidance from play counts, last-played dates, and library age | No |
+| **Last.fm Guidance** | Additional similar-track and similar-artist evidence for already Bliss-eligible candidates | This plugin |
 
-**Clean up and compact stored data** takes a fresh Lyrion artist snapshot. It
-repairs only encoding errors that uniquely match that snapshot, marks repaired
-observations for revalidation, and removes artists with no remaining library or
-similarity references. Ambiguous matches are left unchanged and counted in the
-result. Referenced external artists and their similarity information are kept.
-The saved result limit and storage scope still trim relations during compaction.
-The operation can remove data and asks for confirmation; it makes no Last.fm
-requests.
+Install **Better Call Bliss**, **Bliss Mixer Lab**, or both, and enable Last.fm Guidance on each host's settings page where you want to use it. The provider never creates mixes on its own; candidate eligibility, acoustic similarity, and hard repeat constraints remain under the host's control.
 
-The configurable retained-data budget defaults to 100 decimal MB and applies to canonical Last.fm artist-similarity data
-kept in SQLite: returned artist identities, ranks, scores, and HTTP validators.
-Track similarities may use the separate short-lived JSON cache but are never
-persisted in SQLite. SQLite pages, indexes, WAL/SHM files, and Lyrion-owned
-membership metadata are not treated as Last.fm data. The settings page displays
-both the logical retained-data total and the physical SQLite footprint.
-The separate JSON track cache contributes the UTF-8 size of retained result
-values, excluding JSON field names, punctuation, cache keys and timestamps.
-Numbers use their canonical decimal representation.
-Expired track entries are pruned under a file lock when cache usage is checked
-or the cache is written; a graph status check can therefore clean this cache.
-An unreadable or unrecognized cache is preserved and reported as an accounting
-error instead of assigning it a guessed size. Normal guidance skips writing new cache data when the combined budget
-is full; independent concurrent processes can still race between the SQLite and
-JSON size checks. This accounting is an estimate, not a legal determination.
-Last.fm's [API terms](https://www.last.fm/api/tos) require prior written consent
-to exceed its 100 MB reasonable-usage cap. The displayed accounting is an
-estimate and does not establish compliance with those terms.
+## Choose your Last.fm source
 
-Normal **Save** remains explicit. Maintenance buttons never persist unrelated
-unsaved form edits. Graph controls are hidden for **LastMix**, and that path
-does not open, populate, migrate, compact, delete, or report the graph.
+Select one source on the plugin's settings page:
 
-The public settings intentionally expose **Online with cache** and **Offline
-preferred**. A strict native offline-only policy exists for controlled testing,
-but is not offered in the plugin UI until the applicable Last.fm terms permit
-shipping it as a supported user mode.
+| Source | Best when you want to… | Requirements |
+| --- | --- | --- |
+| **[LastMix](https://github.com/michaelherger/LastMix)** | Reuse Last.fm similarity information from an existing [LastMix](https://github.com/michaelherger/LastMix) setup | [LastMix](https://github.com/michaelherger/LastMix) must be installed; the source is unavailable otherwise |
+| **API Key** | Access Last.fm directly, maintain a local artist-similarity library, and use offline-preferred retrieval | A valid Last.fm API key |
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant W as Provider settings page
-    participant P as Last.fm provider plugin
-    participant D as Lyrion database
-    participant R as Roots and request JSON
-    participant N as Native maintenance command
-    participant A as Last.fm API
-    participant G as SQLite graph
-    participant J as Progress JSONL
+In **[LastMix](https://github.com/michaelherger/LastMix)** mode, the Lyrion provider obtains observations through [LastMix](https://github.com/michaelherger/LastMix); the host resolves them to the local candidate inventory. In **API Key** mode, the native provider fetches only the needed source relationships during preparation, stores artist relations locally, and then scores candidates without further network requests for that job.
 
-    U->>W: Update offline Last.fm library
-    W->>P: JSON-RPC start
-    P->>D: Stream distinct local contributors and Artist MBIDs
-    P->>R: Atomically write frozen roots and trusted request
-    P->>N: Start graph sync with API key in child environment
-    N->>G: Store current library membership
-    loop Missing or refresh-eligible roots
-        N->>G: Read observation and validators
-        N->>A: artist.getSimilar at bounded rate
-        A-->>N: Complete response or tolerated failure
-        N->>G: Commit observation and directed edges
-        N->>J: Append versioned progress
-        W->>P: JSON-RPC status
-        P->>J: Read latest complete event
-        P-->>W: Current progress and duration
-    end
-```
+For API Key mode, you can select an API key configured directly in this provider or an existing **custom** API key saved in [LastMix](https://github.com/michaelherger/LastMix). [LastMix](https://github.com/michaelherger/LastMix) does not have to be enabled merely to reuse its saved custom key. Its custom-key checkbox and shared secret are not required. The selected key must exist; a missing key does not silently fall back to another one. If both plugins use the same key, they also share its request limits.
 
-## Logging
+## Requirements
 
-The plugin registers the `plugin.guidancelastfm` log category. At information
-level it reports similar-track and similar-artist requests, result counts,
-cache use, tolerated failures, and preparation summaries. Debug level adds
-sanitized request/response JSON, returned track or artist relations, and
-candidate-scoring coverage. Fatal provider or host startup failures remain in
-the calling host's error log because no provider session exists to report them.
+- **Lyrion Music Server:** Developed and tested with **Lyrion 9.1**. Older versions may also work, but have not been tested.
+- **Compatible host:** [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss) or [Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab), installed and enabled. Enable Last.fm Guidance separately on the **host plugin's settings page**; installing the provider alone does not affect music selection.
+- **Last.fm data source:** Choose either **[LastMix](https://github.com/michaelherger/LastMix)** (the [LastMix](https://github.com/michaelherger/LastMix) plugin must be installed and enabled) or **API Key** (a valid Last.fm API key is needed). An existing custom key saved in [LastMix](https://github.com/michaelherger/LastMix) can also be reused in API Key mode without enabling [LastMix](https://github.com/michaelherger/LastMix).
+- **Native binary:** A compatible `bliss-guidance-lastfm` executable. Official plugin-feed packages include binaries for Windows, macOS, x86_64 Linux, ARM64 Linux, and ARMHF Linux.
+- **Network access:** Needed to fetch Last.fm information that is not already cached. Previously stored artist-similarity data can also be used with the offline-preferred policy when offline.
 
-LastMix acquisition logs directly through this category. API Key acquisition
-and native scoring return structured events through
-`guidance_log_event_v1`; the host transports them back to this plugin for the
-same provider-owned rendering. API keys and signatures are always redacted.
-When a lookup fails, the existing warning is followed at debug level by the
-operation, source and available failure context, such as HTTP status, Last.fm
-error code, retryability or response-parsing stage. Offline library update
-failures and pauses include the artist and position being processed.
+Last.fm Guidance itself does **not** require a [Bliss Mixer](https://github.com/CDrummond/lms-blissmixer) installation, a `bliss.db`, or a separate Bliss analysis. Those may be required by the chosen host plugin. You do not need both [LastMix](https://github.com/michaelherger/LastMix) and a separately configured API key; choose the source that fits your setup.
 
 ## Installation
 
-Install **Bliss Guidance: Last.fm** through
-[chrober's LMS Plugin Repository](https://github.com/chrober/lms-plugins), then
-enable the provider in a compatible host. Install and configure LastMix
-separately when you want to use the LastMix source.
+1. Make sure your compatible Bliss host is installed and working.
+2. In **LMS Settings > Plugins**, add this repository if it is not already present:
 
-Configure the source and provider-owned guidance defaults on the provider's
-own settings page. Compatible hosts may save their own source and guidance
-overrides; the API key is never exposed to host settings or request artifacts.
+   ```text
+   https://raw.githubusercontent.com/chrober/lms-plugins/main/repo.xml
+   ```
+
+3. Install **Bliss Guidance: Last.fm** and restart LMS if requested.
+4. Open the provider's settings page and choose **[LastMix](https://github.com/michaelherger/LastMix)** or **API Key**. Configure the selected source.
+5. On the **settings page of [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss) or [Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab)**, **enable the Last.fm guidance provider**. It is disabled by default in each host.
+
+## Getting started
+
+To try Last.fm guidance in an ordinary online listening session:
+
+1. Select **[LastMix](https://github.com/michaelherger/LastMix)** (if you use [LastMix](https://github.com/michaelherger/LastMix)) or **API Key** in the provider settings.
+2. Save the source configuration and adjust any guidance defaults you want to use.
+3. On your chosen compatible host's **settings page**, enable Last.fm guidance; review any host-specific overrides.
+4. Start a **Bliss (Lab)** DSTM session or preview a playlist/queue optimization in **Better Call Bliss**.
+5. Compare results with and without Last.fm guidance. It is one influence on candidate selection, not a guarantee that any particular artist or track will appear.
+
+## Optional: keep artist similarities for offline listening
+
+The API Key source supports a local, provider-owned SQLite **artist-similarity graph**. It is useful on a server that sometimes loses internet access—for example, a Raspberry Pi taken on a trip—but does not change the provider's primary purpose of guiding music selection.
+
+### Prepare an offline-friendly library
+
+1. Choose **API Key** and configure a valid API key while connected to the internet.
+2. On the Last.fm provider settings page, choose the desired graph scope, artist result count, and refresh policy.
+3. Click **Update offline Last.fm library** to collect similar-artist information for the artists in your local Lyrion library.
+4. Monitor the displayed coverage, progress, requests, and storage usage. Updates can be paused, resumed, or cancelled.
+5. Select **Offline preferred** for listening where the network might be unavailable, and make sure Last.fm guidance is enabled in the host you plan to use.
+
+### What works offline—and what doesn't?
+
+- **Artist similarities:** Previously stored relationships can be used without an active internet connection, subject to availability and the selected retrieval policy.
+- **Track similarities:** These use a separate, short-lived JSON cache; they are **not** stored permanently in the SQLite artist graph. Do not assume all track similarities will be available offline.
+- **Missing or expired data:** The provider degrades gracefully to partial or neutral guidance instead of blocking a Bliss result.
+- **Offline preferred is not strict offline-only:** The public settings expose **Online with cache** and **Offline preferred**. A strict offline-only mode is reserved for controlled testing, not a supported user-interface option under the current Last.fm terms.
+- **[LastMix](https://github.com/michaelherger/LastMix) mode:** Does not use, populate, maintain, or report the API Key source's offline SQLite graph.
+
+### Local graph management
+
+The settings page shows graph coverage, physical SQLite footprint, and a separate estimate of retained Last.fm data. Maintenance controls include updating artist information, pausing/resuming or cancelling an update, cleaning up and compacting stored data, and confirmed deletion.
+
+**Clean up and compact stored data** refreshes its local view of your library, repairs unambiguous encoding errors, removes unused relationships, and compacts storage without sending Last.fm requests. Ambiguous repairs are left untouched. This operation can remove stored data and therefore requires confirmation.
+
+### Refresh and storage limits
+
+- Optional refresh targets govern when results and empty results are checked again. With the fields empty, Last.fm freshness headers are used where available, falling back to **30 days for results** and **7 days for empty results**.
+- A custom refresh target affects manual updates and direct guidance preparation; it **does not schedule periodic updates**.
+- The default retained-data budget is **100 decimal MB**. It applies to a defined representation of retained Last.fm data rather than simply the physical size of the SQLite file. Track-result value data in the separate JSON cache also contributes to the budget.
+- Last.fm's [API terms](https://www.last.fm/api/tos) require prior written consent to exceed its **100 MB reasonable-usage cap**. The plugin's displayed accounting is an estimate, **not a compliance certification**.
+- The cache supports HTTP revalidation but does not yet interpret every cache directive. Concurrent writers may race between separate budget checks.
+
+## Configuration and limitations
+
+- Host settings inherit the provider defaults unless that host overrides a supported policy.
+- In **API Key** mode, remote requests happen during **prepare**, never during **score**. Scoring uses frozen evidence for the current job and performs no network I/O.
+- Existing data, failed lookups, timeouts, rate limits, and invalid responses may leave only partial Last.fm guidance; the host can continue with Bliss-only selection.
+- API keys are supplied to the native child process through its environment and are not included in the host's request JSON, intermediate artifacts, logs, or previews.
+- Normal form **Save** is explicit. Graph maintenance buttons do not save unrelated unsaved settings edits.
+
+## Technical details
+
+The native implementation is [`bliss-guidance-lastfm`](https://github.com/chrober/bliss-guidance-lastfm). The common provider protocol is [`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi), with Lyrion conventions documented in [`lms-bliss-guidance-provider-kit`](https://github.com/chrober/lms-bliss-guidance-provider-kit).
+
+### Architecture
+
+```mermaid
+flowchart LR
+    External["Installed LMS plugin"] -->|"Plugin source"| Provider["Last.fm Guidance"]
+    API["Last.fm API"] -->|"API Key source"| Provider
+    Provider <--> Cache[("Local artist similarities<br/>(API Key mode)")]
+    Provider -->|"Track and artist similarity guidance"| Host["Better Call Bliss<br/>or Bliss Mixer Lab"]
+```
+
+Last.fm Guidance gets related-track and related-artist information either through [LastMix](https://github.com/michaelherger/LastMix) or directly from the Last.fm API. With the API Key source, artist similarities can also be stored locally. Better Call Bliss or Bliss Mixer Lab uses this extra guidance to rank tracks already selected as eligible by Bliss; only those host plugins create mixes or change playlists and queues.
+
+### Offline graph maintenance internals
+
+The **Update offline Last.fm library** action snapshots distinct contributors from the local Lyrion library, including available MusicBrainz artist IDs, then starts native synchronization asynchronously. The update reports per-artist progress, request/cache/change counts, pauses, errors, timing, and completion without requiring a settings-page reload.
+
+Local-only artist scope checks current library membership before retaining matches; a background membership refresh keeps the graph aligned with newly added artists. If local membership cannot be read, affected local-only results are not persisted against stale membership.
+
+The native implementation supports trusted `graph status`, `graph sync`, `graph compact`, and `graph delete` commands using a request file. It rate-limits acquisition, commits usable completed results, and can resume partial progress. See the [native provider README](https://github.com/chrober/bliss-guidance-lastfm) for exact command syntax and the storage and identity model.
+
+## License and credits
+
+This project relies on Last.fm's API and its [terms of service](https://www.last.fm/api/tos). See the individual component repositories for applicable licenses and credits, including [Bliss Mixer](https://github.com/CDrummond/lms-blissmixer).
