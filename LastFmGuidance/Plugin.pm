@@ -33,6 +33,8 @@ sub _poll_persistence_errors {
     my $dir = catfile(Plugins::LastFmGuidance::Provider::_cache_root(), 'persistence-errors');
     Plugins::LastFmGuidance::PersistenceLog::drain($dir, sub {
         Plugins::LastFmGuidance::Provider::_log_warning($_[0]);
+    }, sub {
+        Plugins::LastFmGuidance::Provider::_log_info($_[0]);
     });
     Slim::Utils::Timers::setTimer(undef, Time::HiRes::time() + 5, \&_poll_persistence_errors);
 }
@@ -58,6 +60,9 @@ sub _graphCommand {
     my $status = $result->{status} || Plugins::LastFmGuidance::GraphJobs::status();
     my $progress = $status->{progress} || {};
     my $graph = $result->{graph} || {};
+    my $defaults = Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1();
+    my $budget_bytes = 0 + ($defaults->{data_budget_mb} || 100) * 1_000_000;
+    my $rejected_at = Plugins::LastFmGuidance::PersistenceLog::last_budget_rejection(catfile(Plugins::LastFmGuidance::Provider::_cache_root(), 'persistence-errors'));
     for my $pair (
         [ok => $result->{ok} ? 1 : 0],
         [error => $result->{error} || $status->{error} || ''],
@@ -76,6 +81,8 @@ sub _graphCommand {
         [cancelled => $progress->{cancelled} ? 1 : 0],
         [retry_at => $progress->{retry_at} || 0],
         [budget_exhausted => $progress->{budget_exhausted} ? 1 : 0],
+        [graph_budget_bytes => $budget_bytes],
+        [graph_budget_rejected_at => $rejected_at],
         [retained_lastfm_bytes => $progress->{retained_lastfm_bytes} || $graph->{retained_lastfm_bytes} || 0],
         [operation => $status->{operation} || ''],
         [cleanup_done => ($progress->{state} || '') eq 'compacted' ? 1 : 0],

@@ -38,6 +38,8 @@ use lib '.';
 
 require 'LastFmGuidance/Provider.pm';
 $INC{'Plugins/LastFmGuidance/Provider.pm'} = $INC{'LastFmGuidance/Provider.pm'};
+require 'LastFmGuidance/PersistenceLog.pm';
+$INC{'Plugins/LastFmGuidance/PersistenceLog.pm'} = $INC{'LastFmGuidance/PersistenceLog.pm'};
 require 'LastFmGuidance/Settings.pm';
 
 my $render_params = {};
@@ -126,6 +128,10 @@ like($template_source, qr/lastfm-guidance-job-error.*result\.error/s,
 like($template_source, qr/lastfm-guidance-graph-section/, 'graph controls have API-key-only conditional visibility');
 like($template_source, qr/graph_status\.retained_lastfm_size/,
     'initial graph status renders preformatted retained Last.fm data size');
+is(Plugins::LastFmGuidance::Settings::_budget_full(100_000_000, 100), 1, 'usage at the configured limit is full');
+is(Plugins::LastFmGuidance::Settings::_budget_full(99_999_999, 100), 0, 'usage below the limit is not labelled full');
+like($template_source, qr/lastfm-guidance-storage-limit-status.*graph_status\.budget_full/s, 'initial settings display the full-store warning');
+like($template_source, qr/lastfm-guidance-storage-limit-status.*result\.budget_exhausted/s, 'live settings retain a budget-stopped update reason');
 like($template_source, qr/result\.graph_retained_lastfm_bytes/,
     'live graph status renders retained Last.fm data bytes');
 like($template_source, qr/function formatBytes.*1000000.*MB.*1000.*kB/s,

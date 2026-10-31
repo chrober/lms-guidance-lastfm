@@ -60,6 +60,7 @@ my $directory = tempdir(CLEANUP => 1);
     sub _graph_progress_path { return "$DIRECTORY/progress.jsonl" }
     sub _graph_cancel_path { return "$DIRECTORY/cancel" }
     sub _log_info { push @LOG, ['info', $_[0]] }
+    sub _log_warning { push @LOG, ['warning', $_[0]] }
     sub _log_error { push @LOG, ['error', $_[0]] }
     $INC{'Plugins/LastFmGuidance/Provider.pm'} = __FILE__;
 
@@ -147,6 +148,16 @@ is($request->{empty_artist_refresh_days}, 7, 'manual update receives the empty-r
 my $status = Plugins::LastFmGuidance::GraphJobs::status();
 ok($status->{running}, 'reports the child as running');
 is($status->{operation}, 'sync', 'reports the active maintenance operation');
+
+open my $full_fh, '>', "$directory/progress.jsonl" or die $!;
+print {$full_fh} encode_json({finished => JSON::PP::true, budget_exhausted => JSON::PP::true, message => 'Last.fm graph storage budget is exhausted', current => 4, total => 10}) . "\n";
+close $full_fh;
+$Proc::Background::ALIVE = 0;
+my $full_status = Plugins::LastFmGuidance::GraphJobs::status();
+ok($full_status->{progress}{budget_exhausted}, 'stopped update retains its budget-exhausted state');
+ok(scalar(grep { $_->[0] eq 'warning' && $_->[1] =~ /budget/ } @Plugins::LastFmGuidance::Provider::LOG), 'budget-stopped update is logged as a warning, not normal completion');
+$Proc::Background::ALIVE = 1;
+Plugins::LastFmGuidance::GraphJobs::start_update();
 
 my $cancelled = Plugins::LastFmGuidance::GraphJobs::cancel();
 ok($cancelled->{ok}, 'accepts cooperative cancellation');

@@ -234,6 +234,11 @@ sub status {
                 $paused ? 'Offline Last.fm library update paused' : 'Offline Last.fm library update cancelled'
             );
         }
+        elsif ($event->{budget_exhausted}) {
+            Plugins::LastFmGuidance::Provider::_log_warning(
+                'Offline Last.fm library update stopped: ' . ($event->{message} || 'storage budget is exhausted')
+            );
+        }
         elsif ($event->{finished}) {
             if ($operation eq 'compact') {
                 Plugins::LastFmGuidance::Provider::_log_info($event->{message});

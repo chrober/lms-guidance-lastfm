@@ -101,6 +101,9 @@
             <div class="prefHead">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS" | string %]</div>
             <div class="prefs">
                 <p id="lastfm-guidance-graph-summary">[% "PLUGIN_LASTFMGUIDANCE_GRAPH_STATE" | string(graph_status.state || 'missing', graph_status.artists || 0, graph_status.artist_observations || 0, graph_status.database_size || '0 B', graph_status.retained_lastfm_size || '0 B') %]</p>
+                <p id="lastfm-guidance-storage-limit-status" [% UNLESS graph_status.budget_full %]style="display:none"[% END %]><b>[% 'PLUGIN_LASTFMGUIDANCE_STORAGE_FULL' | string %]</b></p>
+                <p id="lastfm-guidance-storage-rejection" data-rejected-at="[% graph_status.budget_rejected_at || 0 %]" [% UNLESS graph_status.budget_rejected_at %]style="display:none"[% END %]>[% 'PLUGIN_LASTFMGUIDANCE_STORAGE_REJECTED' | string %] <span id="lastfm-guidance-storage-rejection-time"></span></p>
+                <p id="lastfm-guidance-budget-stopped" [% UNLESS graph_job.progress.budget_exhausted %]style="display:none"[% END %]>[% 'PLUGIN_LASTFMGUIDANCE_UPDATE_BUDGET_STOPPED' | string %]</p>
                 <div id="lastfm-guidance-job-status" [% UNLESS graph_job.running || graph_job.paused %]style="display:none"[% END %]>
                     <table>
                         <tr><td>[% "PLUGIN_LASTFMGUIDANCE_JOB_START" | string %]</td><td id="lastfm-guidance-job-start" data-start="[% graph_job.started_at || 0 %]"></td></tr>
@@ -216,6 +219,9 @@
         var duration = graphElement('lastfm-guidance-job-duration');
         if (start) start.textContent = formatStart(start.getAttribute('data-start'));
         if (duration) duration.textContent = formatDuration(duration.getAttribute('data-duration'));
+        var rejection = graphElement('lastfm-guidance-storage-rejection');
+        var rejectionTime = graphElement('lastfm-guidance-storage-rejection-time');
+        if (rejection && rejectionTime) rejectionTime.textContent = formatStart(rejection.getAttribute('data-rejected-at'));
     }
     function setGraphPolling(duration) {
         if (graphInterval && graphIntervalDuration === duration) return;
@@ -247,6 +253,12 @@
         graphRunning = parseInt(result.running || 0, 10) === 1;
         var paused = parseInt(result.paused || 0, 10) === 1;
         var hasJob = graphRunning || paused;
+        var budgetBytes = Number(result.graph_budget_bytes || 0);
+        var usedBytes = Number(graphRunning ? result.retained_lastfm_bytes : result.graph_retained_lastfm_bytes);
+        setGraphVisible('lastfm-guidance-storage-limit-status', !!result.graph_state && budgetBytes > 0 && usedBytes >= budgetBytes);
+        setGraphVisible('lastfm-guidance-budget-stopped', !!Number(result.budget_exhausted));
+        setGraphVisible('lastfm-guidance-storage-rejection', !!Number(result.graph_budget_rejected_at));
+        if (graphElement('lastfm-guidance-storage-rejection-time')) graphElement('lastfm-guidance-storage-rejection-time').textContent = formatStart(result.graph_budget_rejected_at);
         setGraphVisible('lastfm-guidance-job-status', hasJob);
         setGraphVisible('lastfm-guidance-start', !graphRunning && !paused);
         setGraphVisible('lastfm-guidance-pause', graphRunning);

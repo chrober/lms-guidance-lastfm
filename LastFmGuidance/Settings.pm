@@ -5,6 +5,8 @@ use warnings;
 use base qw(Slim::Web::Settings);
 use Slim::Utils::Prefs;
 use Plugins::LastFmGuidance::Provider;
+use Plugins::LastFmGuidance::PersistenceLog;
+use File::Spec::Functions qw(catfile);
 
 my $prefs = Slim::Utils::Prefs::preferences('plugin.guidancelastfm');
 my @PREFS = qw(source api_key api_key_source lastfm_track_influence lastfm_artist_mode lastfm_artist_level retrieval_policy storage_scope artist_result_limit data_budget_mb artist_refresh_days empty_artist_refresh_days);
@@ -27,6 +29,8 @@ sub beforeRender {
         $params->{graph_status} = Plugins::LastFmGuidance::GraphJobs::graph_status();
         $params->{graph_status}{database_size} = _format_bytes($params->{graph_status}{database_bytes});
         $params->{graph_status}{retained_lastfm_size} = _format_bytes($params->{graph_status}{retained_lastfm_bytes});
+        $params->{graph_status}{budget_full} = _budget_full($params->{graph_status}{retained_lastfm_bytes}, $params->{provider_defaults}{data_budget_mb});
+        $params->{graph_status}{budget_rejected_at} = Plugins::LastFmGuidance::PersistenceLog::last_budget_rejection(catfile(Plugins::LastFmGuidance::Provider::_cache_root(), 'persistence-errors'));
         $params->{graph_job}{progress}{retained_lastfm_size} =
             _format_bytes($params->{graph_job}{progress}{retained_lastfm_bytes});
     }
@@ -91,6 +95,12 @@ sub _format_bytes {
     return sprintf('%.1f MB', $bytes / 1_000_000) if $bytes >= 1_000_000;
     return sprintf('%.1f kB', $bytes / 1_000) if $bytes >= 1_000;
     return sprintf('%d B', $bytes);
+}
+
+sub _budget_full {
+    my ($bytes, $limit_mb) = @_;
+    return 0 unless defined($bytes) && $bytes =~ /^\d+$/ && defined($limit_mb) && $limit_mb =~ /^\d+$/ && $limit_mb > 0;
+    return $bytes >= $limit_mb * 1_000_000 ? 1 : 0;
 }
 
 sub _clamp {

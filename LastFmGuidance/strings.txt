@@ -166,6 +166,18 @@ PLUGIN_LASTFMGUIDANCE_GRAPH_STATE
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS
 	EN	State: %1; artists: %2; updated roots: %3; SQLite storage: %4; retained Last.fm data: %5; library coverage: %6/%7; external artists: %8; artist edges: %9; reciprocal pairs: %10
 
+PLUGIN_LASTFMGUIDANCE_STORAGE_FULL
+	EN	The retained Last.fm data has reached the configured storage limit. Further additions may be rejected until space is freed or the limit is raised.
+	DE	Die gespeicherten Last.fm-Daten haben das konfigurierte Speicherlimit erreicht. Weitere Einträge können abgelehnt werden, bis Speicher freigegeben oder das Limit erhöht wird.
+
+PLUGIN_LASTFMGUIDANCE_STORAGE_REJECTED
+	EN	A background write was rejected because it exceeded the configured storage limit. Last rejection:
+	DE	Ein Speichervorgang im Hintergrund wurde abgelehnt, weil er das konfigurierte Speicherlimit überschritten hätte. Letzte Ablehnung:
+
+PLUGIN_LASTFMGUIDANCE_UPDATE_BUDGET_STOPPED
+	EN	The last library update stopped because the next result would exceed the configured Last.fm data limit. Free space or raise the limit before updating again.
+	DE	Die letzte Bibliotheksaktualisierung wurde gestoppt, weil das nächste Ergebnis das konfigurierte Limit für Last.fm-Daten überschreiten würde. Gib Speicher frei oder erhöhe das Limit, bevor du die Aktualisierung erneut startest.
+
 PLUGIN_LASTFMGUIDANCE_JOB_START
 	EN	Start:
 
