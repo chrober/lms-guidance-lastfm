@@ -4,7 +4,7 @@
 
 **Bliss Guidance: Last.fm** is an optional plugin for [Lyrion Music Server (LMS)](https://lyrion.org/) that contributes Last.fm **similar-track** and **similar-artist** information to [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss) and [Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab).
 
-**Bliss-first by design:** The host first uses Bliss acoustic similarity to identify suitable candidate tracks. Only then does Last.fm Guidance influence how those already eligible tracks are ranked. It cannot introduce new candidates or override repeat rules. This differs from [LastMix](https://github.com/michaelherger/LastMix), which can create mixes based on Last.fm recommendations. Last.fm Guidance contributes **additional guidance** rather than creating mixes or controlling playback by itself.
+**Bliss-first by design:** Bliss determines the eligible local music and remains responsible for acoustic quality and repeat rules. Within that allowed pool, Last.fm similar-track and similar-artist evidence can influence candidate shortlisting and ranking. It cannot introduce remote or otherwise ineligible tracks or override repeat rules. Unlike [LastMix](https://github.com/michaelherger/LastMix), which can create mixes based on Last.fm recommendations, Last.fm Guidance only contributes additional guidance to compatible Bliss hosts; it does not create mixes or control playback by itself.
 
 As an extra benefit, you can store Last.fm **artist similarity** information locally for offline-friendly listening, such as running Lyrion on a Raspberry Pi while travelling.
 
@@ -152,13 +152,13 @@ The native implementation is [`bliss-guidance-lastfm`](https://github.com/chrobe
 
 ```mermaid
 flowchart LR
-    External["Installed LMS plugin"] -->|"Plugin source"| Provider["Last.fm Guidance"]
+    LastMix["LastMix"] -->|"LastMix source"| Provider["Last.fm Guidance"]
     API["Last.fm API"] -->|"API Key source"| Provider
     Provider <--> Cache[("Local artist similarities<br/>(API Key mode)")]
     Provider -->|"Track and artist similarity guidance"| Host["Better Call Bliss<br/>or Bliss Mixer Lab"]
 ```
 
-Last.fm Guidance gets related-track and related-artist information either through [LastMix](https://github.com/michaelherger/LastMix) or directly from the Last.fm API. With the API Key source, artist similarities can also be stored locally. Better Call Bliss or Bliss Mixer Lab uses this extra guidance to rank tracks already selected as eligible by Bliss; only those host plugins create mixes or change playlists and queues.
+Last.fm Guidance gets related-track and related-artist information either through [LastMix](https://github.com/michaelherger/LastMix) or directly from the Last.fm API. With the API Key source, artist similarities can also be stored locally. Better Call Bliss or Bliss Mixer Lab uses this extra guidance to shortlist and rank tracks within the Bliss-eligible local candidate pool; only those host plugins create mixes or change playlists and queues.
 
 ### Offline graph maintenance internals
 
