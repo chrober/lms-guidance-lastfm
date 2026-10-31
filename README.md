@@ -170,4 +170,6 @@ The native implementation supports trusted `graph status`, `graph sync`, `graph 
 
 ## License and credits
 
+This plugin is licensed under [GPL-3.0-only](LICENSE).
+
 This project relies on Last.fm's API and its [terms of service](https://www.last.fm/api/tos). See the individual component repositories for applicable licenses and credits, including [Bliss Mixer](https://github.com/CDrummond/lms-blissmixer).

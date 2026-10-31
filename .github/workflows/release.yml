@@ -57,6 +57,8 @@ jobs:
           fi
       - name: Run feed updater tests
         run: python -m unittest tests/test_update_lms_plugins_repo.py
+      - name: Test native source verification
+        run: python tests/test_verify_native_source.py
 
   package-release:
     needs: test
@@ -108,8 +110,16 @@ jobs:
           set -euo pipefail
           mkdir native-assets
           gh release download "$NATIVE_RELEASE" --repo "$NATIVE_REPO" --dir native-assets --pattern 'bliss-guidance-lastfm-*'
+          (cd native-assets && for asset in bliss-guidance-lastfm-aarch64-linux bliss-guidance-lastfm-armhf-linux bliss-guidance-lastfm-x86_64-linux bliss-guidance-lastfm-mac bliss-guidance-lastfm-windows.exe; do sha256sum -c "$asset.sha256"; done)
+          git check-ref-format "refs/tags/$NATIVE_RELEASE"
+          commit="$(git ls-remote "https://github.com/$NATIVE_REPO.git" "refs/tags/$NATIVE_RELEASE" "refs/tags/$NATIVE_RELEASE^{}" | tail -n 1 | cut -f 1)"
+          python scripts/verify_native_source.py native-assets/bliss-guidance-lastfm-source.tar.gz "$commit"
       - name: Build platform plugin archives
         id: package
+        env:
+          NATIVE_RELEASE: ${{ steps.meta.outputs.native_release }}
+          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
           version='${{ steps.meta.outputs.version }}'
@@ -121,16 +131,28 @@ jobs:
           install -m 0644 -D native-assets/bliss-guidance-lastfm-windows.exe LastFmGuidance/Bin/windows/bliss-guidance-lastfm.exe
           package_platform() {
             platform="$1"; asset="$2"; rm -rf staging/LastFmGuidance; cp -a LastFmGuidance staging/LastFmGuidance
+            cp LICENSE THIRD_PARTY_NOTICES.md staging/LastFmGuidance/
+            printf '# Source provenance\n\nPlugin commit: %s\nhttps://github.com/chrober/lms-guidance-lastfm/tree/%s\n\nNative provider release: %s\nhttps://github.com/chrober/bliss-guidance-lastfm/releases/tag/%s\n\nThese references do not constitute a complete Corresponding Source bundle.\n' "$GITHUB_SHA" "$GITHUB_SHA" "$NATIVE_RELEASE" "$NATIVE_RELEASE" > staging/LastFmGuidance/SOURCE.md
+            printf '\nPlugin source archive: https://github.com/chrober/lms-guidance-lastfm/releases/download/%s/lms-guidance-lastfm-source-%s.zip\n' "$RELEASE_TAG" "$RELEASE_VERSION" >> staging/LastFmGuidance/SOURCE.md
+            printf 'Native source archive: https://github.com/chrober/bliss-guidance-lastfm/releases/download/%s/bliss-guidance-lastfm-source.tar.gz\n' "$NATIVE_RELEASE" >> staging/LastFmGuidance/SOURCE.md
+            cp staging/LastFmGuidance/SOURCE.md staging/LastFmGuidance/Bin/SOURCE.md
             case "$platform" in
               linux) rm -rf staging/LastFmGuidance/Bin/mac staging/LastFmGuidance/Bin/windows ;;
               mac) rm -rf staging/LastFmGuidance/Bin/aarch64-linux staging/LastFmGuidance/Bin/armhf-linux staging/LastFmGuidance/Bin/x86_64-linux staging/LastFmGuidance/Bin/windows ;;
               windows) rm -rf staging/LastFmGuidance/Bin/aarch64-linux staging/LastFmGuidance/Bin/armhf-linux staging/LastFmGuidance/Bin/x86_64-linux staging/LastFmGuidance/Bin/mac ;;
             esac
             (cd staging && zip -q -r "../dist/$asset" LastFmGuidance)
+            unzip -tq "dist/$asset" >/dev/null
+            unzip -p "dist/$asset" LastFmGuidance/LICENSE | cmp - LICENSE
+            unzip -p "dist/$asset" LastFmGuidance/THIRD_PARTY_NOTICES.md | cmp - THIRD_PARTY_NOTICES.md
+            unzip -p "dist/$asset" LastFmGuidance/SOURCE.md | grep -F -- "$NATIVE_RELEASE" >/dev/null
           }
           package_platform linux "lms-guidance-lastfm-linux-$version.zip"
           package_platform mac "lms-guidance-lastfm-mac-$version.zip"
           package_platform windows "lms-guidance-lastfm-windows-$version.zip"
+          if git ls-tree -r "$GITHUB_SHA" | grep '^160000 ' >/dev/null; then echo 'Submodule source capture is not implemented' >&2; exit 1; fi
+          git archive --format=zip --output="dist/lms-guidance-lastfm-source-$version.zip" "$GITHUB_SHA"
+          unzip -tq "dist/lms-guidance-lastfm-source-$version.zip" >/dev/null
           for asset in dist/*.zip; do (cd dist && sha1sum "$(basename "$asset")" > "$(basename "$asset").sha1"); (cd dist && sha256sum "$(basename "$asset")" > "$(basename "$asset").sha256"); done
           echo "linux_sha1=$(sha1sum "dist/lms-guidance-lastfm-linux-$version.zip" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           echo "mac_sha1=$(sha1sum "dist/lms-guidance-lastfm-mac-$version.zip" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
@@ -148,7 +170,16 @@ jobs:
         run: |
           set -euo pipefail
           printf '# Bliss Guidance: Last.fm %s\n\nPlatform-specific Lyrion provider packages.\n' "$VERSION" > release-notes.md
-          if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" dist/* --clobber; else gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "Bliss Guidance: Last.fm $VERSION" --notes-file release-notes.md; fi
+          remote_tag="$(git ls-remote --tags origin "refs/tags/$TAG")"
+          if [ -n "$remote_tag" ]; then
+            git fetch --no-tags origin "refs/tags/$TAG:refs/tags/$TAG"
+            test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$GITHUB_SHA" || { echo 'Release tag points to a different source commit' >&2; exit 1; }
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "Bliss Guidance: Last.fm $VERSION" --notes-file release-notes.md
+          fi
       - name: Update extension feed
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) && (github.event_name != 'workflow_dispatch' || inputs.update_lms_plugins) }}
         uses: actions/checkout@v4
