@@ -5,6 +5,9 @@ use base qw(Slim::Plugin::Base);
 use File::Basename qw(dirname);
 use File::Spec::Functions qw(catfile);
 use Plugins::LastFmGuidance::Provider;
+use Plugins::LastFmGuidance::PersistenceLog;
+use Slim::Utils::Timers;
+use Time::HiRes ();
 
 sub getDisplayName { return 'PLUGIN_LASTFMGUIDANCE_NAME'; }
 
@@ -12,6 +15,7 @@ sub initPlugin {
     my $class = shift;
     Plugins::LastFmGuidance::Provider::init_preferences();
     Plugins::LastFmGuidance::Provider::init_logging();
+    _poll_persistence_errors();
     _load_strings();
     if (main::WEBUI) {
         require 'Plugins/LastFmGuidance/Settings.pm';
@@ -23,6 +27,19 @@ sub initPlugin {
         [0, 0, 1, \&_graphCommand],
     );
     $class->SUPER::initPlugin();
+}
+
+sub _poll_persistence_errors {
+    my $dir = catfile(Plugins::LastFmGuidance::Provider::_cache_root(), 'persistence-errors');
+    Plugins::LastFmGuidance::PersistenceLog::drain($dir, sub {
+        Plugins::LastFmGuidance::Provider::_log_warning($_[0]);
+    });
+    Slim::Utils::Timers::setTimer(undef, Time::HiRes::time() + 5, \&_poll_persistence_errors);
+}
+
+sub shutdownPlugin {
+    Slim::Utils::Timers::killTimers(undef, \&_poll_persistence_errors);
+    shift->SUPER::shutdownPlugin(@_);
 }
 
 sub _graphCommand {

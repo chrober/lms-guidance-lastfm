@@ -22,6 +22,12 @@ use lib '.';
     sub initPlugin { 1 }
     $INC{'Slim/Plugin/Base.pm'} = __FILE__;
 
+    package Slim::Utils::Timers;
+    our @TIMERS;
+    sub setTimer { push @TIMERS, [@_] }
+    sub killTimers { }
+    $INC{'Slim/Utils/Timers.pm'} = __FILE__;
+
     package Slim::Control::Request;
     our @DISPATCH;
     sub addDispatch { push @DISPATCH, [@_] }
@@ -33,9 +39,12 @@ use lib '.';
 
 require 'LastFmGuidance/Provider.pm';
 $INC{'Plugins/LastFmGuidance/Provider.pm'} = $INC{'LastFmGuidance/Provider.pm'};
+require 'LastFmGuidance/PersistenceLog.pm';
+$INC{'Plugins/LastFmGuidance/PersistenceLog.pm'} = $INC{'LastFmGuidance/PersistenceLog.pm'};
 require 'LastFmGuidance/Plugin.pm';
 
 Plugins::LastFmGuidance::Plugin->initPlugin();
+ok(@Slim::Utils::Timers::TIMERS, 'plugin schedules background persistence error reporting');
 is_deeply(
     $Slim::Control::Request::DISPATCH[0][0],
     ['lastfmguidance', 'graph', '_action'],

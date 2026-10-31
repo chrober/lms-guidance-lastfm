@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.4 - 2026-10-31
+
+- Use fresh offline data immediately; fetch missing or stale data online for the
+  current request, with stale artist data as a fallback if the lookup fails.
+- Persist fetched guidance independently after returning it, report background
+  persistence failures, and log preparation timings.
+- Bundle native `bliss-guidance-lastfm` 0.2.3.
+
 ## 0.3.3 - 2026-10-29
 
 - Allow direct Last.fm guidance and offline graph maintenance to use the custom

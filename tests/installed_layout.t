@@ -11,7 +11,7 @@ my $source = File::Spec->catdir($FindBin::Bin, '..', 'LastFmGuidance');
 my $stage = tempdir(CLEANUP => 1);
 my $installed = File::Spec->catdir($stage, 'Plugins', 'LastFmGuidance');
 make_path($installed);
-for my $file (qw(Plugin.pm Provider.pm Settings.pm strings.txt)) {
+for my $file (qw(Plugin.pm Provider.pm PersistenceLog.pm Settings.pm strings.txt)) {
     copy(File::Spec->catfile($source, $file), File::Spec->catfile($installed, $file))
         or die "Could not stage $file from $source into $installed: $!";
 }
@@ -33,6 +33,10 @@ unshift @INC, $stage;
     sub import { }
     sub initPlugin { 1 }
     $INC{'Slim/Plugin/Base.pm'} = __FILE__;
+    package Slim::Utils::Timers;
+    sub setTimer { }
+    sub killTimers { }
+    $INC{'Slim/Utils/Timers.pm'} = __FILE__;
 
     package main;
     sub WEBUI { 0 }

@@ -259,6 +259,8 @@ is($status->{reason}, 'native_binary_missing', 'missing native binary is reporte
         {},
     );
     is_deeply($config->{artifacts}, [], 'direct API mode does not require a LastMix artifact');
+    cmp_ok($config->{timeout_ms}, '>=', $config->{options}{request_deadline_ms} + 3000,
+        'host response timeout leaves at least three seconds beyond acquisition for preparation and response');
     is_deeply($config->{options}, {
         acquisition_mode => 'direct',
         store_path => Plugins::LastFmGuidance::Provider::_graph_store_path(),
@@ -329,6 +331,19 @@ ok(scalar(grep { $_->[0] eq 'warning' && $_->[1] eq 'Last.fm request failed for 
     'the existing warning message remains unchanged');
 ok(scalar(grep { $_->[0] eq 'debug' && $_->[1] =~ /HTTP status 429/ && $_->[1] =~ /retry-after=60s/ } @{$Slim::Utils::Log::LOGGER->{lines}}),
     'the additional debug line explains the failed request');
+is(Plugins::LastFmGuidance::Provider::_render_log_event({
+    event => 'lastfm_prepare_timing', details => {
+        local_lookup_ms => 120, online_fetch_ms => 350, total_ms => 510,
+        cached => 3, stale_offline => 1, missing => 2,
+    },
+}), 'Last.fm preparation timing: local=120ms, online=350ms, total=510ms; cached=3, stale=1, missing=2',
+    'preparation timing is an additional diagnostic without altering existing log messages');
+is(Plugins::LastFmGuidance::Provider::_render_log_event({
+    event => 'lastfm_background_refresh', details => { state => 'started' },
+}), 'Last.fm background refresh: started', 'reports background refresh scheduling');
+is(Plugins::LastFmGuidance::Provider::_render_log_event({
+    event => 'lastfm_background_refresh', details => { state => 'failed_to_start' },
+}), 'Last.fm background refresh: could not start', 'reports refresh launch failures');
 ok(
     scalar(grep { $_->[1] eq 'Last.fm scoring: candidates=20, similar-track supported=1, similar-artist supported=4' }
         @{$Slim::Utils::Log::LOGGER->{lines}}),

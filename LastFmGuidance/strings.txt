@@ -95,7 +95,7 @@ PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY
 	EN	Retrieval policy
 
 PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY_DESC
-	EN	Online with cache revalidates stale data before use. Offline preferred uses stored data immediately and refreshes missing or stale entries when online access is available.
+	EN	Online with cache revalidates stale data before use. Offline preferred also tries online for missing or stale data, but falls back to stale artist data if the lookup fails. Offline only never contacts Last.fm.
 
 PLUGIN_LASTFMGUIDANCE_POLICY_ONLINE
 	EN	Online with cache

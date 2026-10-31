@@ -277,7 +277,9 @@ sub guidance_provider_native_spi_config_v1 {
         options => $options,
         artifacts => \@artifacts,
         resources => [],
-        timeout_ms => 5000,
+        # The acquisition deadline runs inside prepare; allow time for local
+        # SQLite/cache work and the SPI response around that network budget.
+        timeout_ms => 10000,
     };
 }
 
@@ -521,6 +523,15 @@ sub _render_log_event {
         return sprintf('Last.fm guidance prepared: requests=%d, cache hits=%d, failures=%d, relations=%d',
             $details->{requests} || 0, $details->{cache_hits} || 0,
             $details->{failures} || 0, $details->{relations} || $count);
+    }
+    if ($name eq 'lastfm_prepare_timing') {
+        return sprintf('Last.fm preparation timing: local=%dms, online=%dms, total=%dms; cached=%d, stale=%d, missing=%d',
+            map { 0 + ($details->{$_} || 0) } qw(local_lookup_ms online_fetch_ms total_ms cached stale_offline missing));
+    }
+    if ($name eq 'lastfm_background_refresh') {
+        return 'Last.fm background refresh: started' if ($details->{state} || '') eq 'started';
+        return 'Last.fm background refresh: could not start' if ($details->{state} || '') eq 'failed_to_start';
+        return '';
     }
     if ($name eq 'lastfm_scoring_completed') {
         return sprintf('Last.fm scoring: candidates=%d, similar-track supported=%d, similar-artist supported=%d',
