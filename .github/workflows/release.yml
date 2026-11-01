@@ -111,6 +111,7 @@ jobs:
           mkdir native-assets
           gh release download "$NATIVE_RELEASE" --repo "$NATIVE_REPO" --dir native-assets --pattern 'bliss-guidance-lastfm-*'
           (cd native-assets && for asset in bliss-guidance-lastfm-aarch64-linux bliss-guidance-lastfm-armhf-linux bliss-guidance-lastfm-x86_64-linux bliss-guidance-lastfm-mac bliss-guidance-lastfm-windows.exe; do sha256sum -c "$asset.sha256"; done)
+          (cd native-assets && sha256sum -c bliss-guidance-lastfm-third-party-licenses.zip.sha256)
           git check-ref-format "refs/tags/$NATIVE_RELEASE"
           commit="$(git ls-remote "https://github.com/$NATIVE_REPO.git" "refs/tags/$NATIVE_RELEASE" "refs/tags/$NATIVE_RELEASE^{}" | tail -n 1 | cut -f 1)"
           python scripts/verify_native_source.py native-assets/bliss-guidance-lastfm-source.tar.gz "$commit"
@@ -132,6 +133,8 @@ jobs:
           package_platform() {
             platform="$1"; asset="$2"; rm -rf staging/LastFmGuidance; cp -a LastFmGuidance staging/LastFmGuidance
             cp LICENSE THIRD_PARTY_NOTICES.md staging/LastFmGuidance/
+            mkdir -p staging/LastFmGuidance/third-party-licenses
+            cp native-assets/bliss-guidance-lastfm-third-party-licenses.zip staging/LastFmGuidance/third-party-licenses/
             printf '# Source provenance\n\nPlugin commit: %s\nhttps://github.com/chrober/lms-guidance-lastfm/tree/%s\n\nNative provider release: %s\nhttps://github.com/chrober/bliss-guidance-lastfm/releases/tag/%s\n\nThese references do not constitute a complete Corresponding Source bundle.\n' "$GITHUB_SHA" "$GITHUB_SHA" "$NATIVE_RELEASE" "$NATIVE_RELEASE" > staging/LastFmGuidance/SOURCE.md
             printf '\nPlugin source archive: https://github.com/chrober/lms-guidance-lastfm/releases/download/%s/lms-guidance-lastfm-source-%s.zip\n' "$RELEASE_TAG" "$RELEASE_VERSION" >> staging/LastFmGuidance/SOURCE.md
             printf 'Native source archive: https://github.com/chrober/bliss-guidance-lastfm/releases/download/%s/bliss-guidance-lastfm-source.tar.gz\n' "$NATIVE_RELEASE" >> staging/LastFmGuidance/SOURCE.md
