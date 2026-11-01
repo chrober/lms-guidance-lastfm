@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.5
+
+- Bundle native provider 0.2.4 and distribute version-specific source and
+  third-party license material with the release.
+
 ## 0.3.4 - 2026-10-31
 
 - Use fresh offline data immediately; fetch missing or stale data online for the
