@@ -166,6 +166,8 @@ The **Update offline Last.fm library** action snapshots distinct contributors fr
 
 Local-only artist scope checks current library membership before retaining matches; a background membership refresh keeps the graph aligned with newly added artists. If local membership cannot be read, affected local-only results are not persisted against stale membership.
 
+Detached persistence workers write diagnostic reports under the provider cache and notify the plugin over a loopback-only socket. The plugin consumes those reports through Lyrion's event loop without an idle polling timer; reports left while Lyrion is unavailable are recovered on the next startup. If a notification is lost, a later notification or restart recovers the remaining reports.
+
 The native implementation supports trusted `graph status`, `graph sync`, `graph compact`, and `graph delete` commands using a request file. It rate-limits acquisition, commits usable completed results, and can resume partial progress. See the [native provider README](https://github.com/chrober/bliss-guidance-lastfm) for exact command syntax and the storage and identity model.
 
 ## License and credits

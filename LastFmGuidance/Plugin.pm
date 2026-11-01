@@ -6,8 +6,10 @@ use File::Basename qw(dirname);
 use File::Spec::Functions qw(catfile);
 use Plugins::LastFmGuidance::Provider;
 use Plugins::LastFmGuidance::PersistenceLog;
-use Slim::Utils::Timers;
-use Time::HiRes ();
+use IO::Socket::INET;
+use Slim::Networking::Select;
+
+my ($persistence_socket, $persistence_port_file, $persistence_port);
 
 sub getDisplayName { return 'PLUGIN_LASTFMGUIDANCE_NAME'; }
 
@@ -15,7 +17,8 @@ sub initPlugin {
     my $class = shift;
     Plugins::LastFmGuidance::Provider::init_preferences();
     Plugins::LastFmGuidance::Provider::init_logging();
-    _poll_persistence_errors();
+    _start_persistence_notifications();
+    _drain_persistence_reports();
     _load_strings();
     if (main::WEBUI) {
         require 'Plugins/LastFmGuidance/Settings.pm';
@@ -29,19 +32,62 @@ sub initPlugin {
     $class->SUPER::initPlugin();
 }
 
-sub _poll_persistence_errors {
+sub _drain_persistence_reports {
     my $dir = catfile(Plugins::LastFmGuidance::Provider::_cache_root(), 'persistence-errors');
     Plugins::LastFmGuidance::PersistenceLog::drain($dir, sub {
         Plugins::LastFmGuidance::Provider::_log_warning($_[0]);
     }, sub {
         Plugins::LastFmGuidance::Provider::_log_info($_[0]);
     });
-    Slim::Utils::Timers::setTimer(undef, Time::HiRes::time() + 5, \&_poll_persistence_errors);
+}
+
+sub _start_persistence_notifications {
+    return if $persistence_socket;
+    my $socket = IO::Socket::INET->new(LocalAddr => '127.0.0.1', LocalPort => 0, Proto => 'udp');
+    unless ($socket) {
+        Plugins::LastFmGuidance::Provider::_log_warning('Last.fm persistence notification listener unavailable; pending reports will be recovered on restart');
+        return;
+    }
+    $socket->blocking(0);
+    my $path = catfile(Plugins::LastFmGuidance::Provider::_cache_root(), 'persistence-notify-port');
+    my $out;
+    if (-l $path || !open($out, '>', $path)) {
+        close $socket;
+        Plugins::LastFmGuidance::Provider::_log_warning('Last.fm persistence notification endpoint unavailable; pending reports will be recovered on restart');
+        return;
+    }
+    my $port = $socket->sockport;
+    my $written = print {$out} "$port\n";
+    my $closed = close $out;
+    unless ($written && $closed) {
+        unlink $path;
+        close $socket;
+        Plugins::LastFmGuidance::Provider::_log_warning('Last.fm persistence notification endpoint unavailable; pending reports will be recovered on restart');
+        return;
+    }
+    ($persistence_socket, $persistence_port_file, $persistence_port) = ($socket, $path, $port);
+    Slim::Networking::Select::addRead($socket, \&_persistence_notification);
+}
+
+sub _persistence_notification {
+    my $socket = shift;
+    return unless defined $socket->recv(my $message, 32);
+    _drain_persistence_reports();
 }
 
 sub shutdownPlugin {
-    Slim::Utils::Timers::killTimers(undef, \&_poll_persistence_errors);
-    shift->SUPER::shutdownPlugin(@_);
+    if ($persistence_socket) {
+        Slim::Networking::Select::removeRead($persistence_socket);
+        close $persistence_socket;
+        undef $persistence_socket;
+    }
+    if ($persistence_port_file && !-l $persistence_port_file && open(my $in, '<', $persistence_port_file)) {
+        my $port = <$in>;
+        close $in;
+        unlink $persistence_port_file if defined $port && $port =~ /^\Q$persistence_port\E\s*$/;
+    }
+    undef $persistence_port_file;
+    undef $persistence_port;
 }
 
 sub _graphCommand {

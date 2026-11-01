@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6
+
+- Replace idle persistence-report polling with event-driven local notifications,
+  retaining report recovery and existing log messages.
+- Fix the plugin shutdown warning and bundle native provider 0.2.5.
+
 ## 0.3.5
 
 - Bundle native provider 0.2.4 and distribute version-specific source and

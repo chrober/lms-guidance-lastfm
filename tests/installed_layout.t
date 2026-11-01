@@ -38,6 +38,11 @@ unshift @INC, $stage;
     sub killTimers { }
     $INC{'Slim/Utils/Timers.pm'} = __FILE__;
 
+    package Slim::Networking::Select;
+    sub addRead { }
+    sub removeRead { }
+    $INC{'Slim/Networking/Select.pm'} = __FILE__;
+
     package main;
     sub WEBUI { 0 }
 }
