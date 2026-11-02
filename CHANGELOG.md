@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.7
+
+- Bundle native provider 0.2.6 with updated third-party notices.
+
 ## 0.3.6
 
 - Replace idle persistence-report polling with event-driven local notifications,
