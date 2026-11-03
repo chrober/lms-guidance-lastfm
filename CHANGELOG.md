@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.8
+
+- Add German translations for the provider settings and status text.
+- Size optional artist-limit and refresh fields to fit localized placeholders and values.
+
 ## 0.3.7
 
 - Bundle native provider 0.2.6 with updated third-party notices.

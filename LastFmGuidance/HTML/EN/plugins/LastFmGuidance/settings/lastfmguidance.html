@@ -78,15 +78,15 @@
         [% END %]
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT" desc="PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC" %]
-            <input type="number" min="1" step="1" class="stdedit" name="pref_artist_result_limit" id="lastfm-guidance-artist-result-limit" value="[% IF prefs.artist_result_limit %][% prefs.artist_result_limit %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_ARTIST_LIMIT_UNLIMITED' | string %]" size="8">
+            <input type="number" min="1" step="1" class="stdedit optional-number-autosize" name="pref_artist_result_limit" id="lastfm-guidance-artist-result-limit" value="[% IF prefs.artist_result_limit %][% prefs.artist_result_limit %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_ARTIST_LIMIT_UNLIMITED' | string %]" size="8">
         [% END %]
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH" desc="PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH_DESC" %]
-            <input type="number" min="1" max="4294967295" step="1" class="stdedit" name="pref_artist_refresh_days" id="lastfm-guidance-artist-refresh" value="[% IF prefs.artist_refresh_days %][% prefs.artist_refresh_days %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC' | string %]" size="8">
+            <input type="number" min="1" max="4294967295" step="1" class="stdedit optional-number-autosize" name="pref_artist_refresh_days" id="lastfm-guidance-artist-refresh" value="[% IF prefs.artist_refresh_days %][% prefs.artist_refresh_days %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC' | string %]" size="8">
         [% END %]
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH" desc="PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH_DESC" %]
-            <input type="number" min="1" max="4294967295" step="1" class="stdedit" name="pref_empty_artist_refresh_days" id="lastfm-guidance-empty-artist-refresh" value="[% IF prefs.empty_artist_refresh_days %][% prefs.empty_artist_refresh_days %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC' | string %]" size="8">
+            <input type="number" min="1" max="4294967295" step="1" class="stdedit optional-number-autosize" name="pref_empty_artist_refresh_days" id="lastfm-guidance-empty-artist-refresh" value="[% IF prefs.empty_artist_refresh_days %][% prefs.empty_artist_refresh_days %][% END %]" placeholder="[% 'PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC' | string %]" size="8">
         [% END %]
 
         [% WRAPPER settingGroup title="PLUGIN_LASTFMGUIDANCE_DATA_BUDGET" desc="PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_DESC" %]
@@ -334,3 +334,36 @@
 </script>
 
 [% PROCESS settings/footer.html %]
+
+<script type="text/javascript">
+  function sizeOptionalNumberFields() {
+    var inputs = document.querySelectorAll('input.optional-number-autosize');
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    if (!context) return;
+    var updates = [];
+    Array.prototype.forEach.call(inputs, function (input) {
+      function update() {
+        var style = window.getComputedStyle(input);
+        var placeholderStyle = window.getComputedStyle(input, '::placeholder');
+        context.font = placeholderStyle.font || style.font;
+        var placeholderWidth = context.measureText(input.placeholder || '').width;
+        context.font = style.font;
+        var valueWidth = context.measureText(input.value || '').width;
+        var decoration = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+          + (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+        input.style.boxSizing = 'border-box';
+        input.style.minWidth = '0';
+        input.style.maxWidth = '100%';
+        input.style.width = Math.ceil(Math.max(placeholderWidth, valueWidth) + decoration + 32) + 'px';
+      }
+      input.addEventListener('input', update);
+      updates.push(update);
+      update();
+    });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { updates.forEach(function (update) { update(); }); });
+    }
+  }
+  window.addEventListener('load', sizeOptionalNumberFields);
+</script>

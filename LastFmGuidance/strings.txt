@@ -1,170 +1,226 @@
 PLUGIN_LASTFMGUIDANCE_NAME
 	EN	Bliss Guidance: Last.fm
+	DE	Bliss Guidance: Last.fm
 
 PLUGIN_LASTFMGUIDANCE_DESC
 	EN	Optional Last.fm similarity guidance for compatible Bliss hosts
+	DE	Optionale Last.fm-Ähnlichkeitsgewichtung für kompatible Bliss-Plugins
 
 DEBUG_PLUGIN_LASTFMGUIDANCE
 	EN	Bliss Guidance: Last.fm
+	DE	Bliss Guidance: Last.fm
 
 PLUGIN_LASTFMGUIDANCE_NOTE
 	EN	This provider contributes optional Last.fm similar-track and similar-artist evidence. Hosts discover it automatically, but keep it disabled until you enable it in each host's settings.
+	DE	Dieser Anbieter stellt optionale Last.fm-Informationen zu ähnlichen Titeln und Interpreten bereit. Kompatible Plugins erkennen ihn automatisch; er bleibt jedoch deaktiviert, bis er in deren Einstellungen aktiviert wird.
 
 PLUGIN_LASTFMGUIDANCE_STATUS
 	EN	Provider status
+	DE	Anbieterstatus
 
 PLUGIN_LASTFMGUIDANCE_STATUS_AVAILABLE
 	EN	The Last.fm guidance provider is available.
+	DE	Der Last.fm-Gewichtungsanbieter ist verfügbar.
 
 PLUGIN_LASTFMGUIDANCE_STATUS_UNAVAILABLE
 	EN	The provider is not available (%s).
+	DE	Der Anbieter ist nicht verfügbar (%s).
 
 PLUGIN_LASTFMGUIDANCE_DEFAULTS
 	EN	Default guidance policy
+	DE	Standardeinstellungen für die Gewichtung
 
 PLUGIN_LASTFMGUIDANCE_DEFAULTS_NOTE
 	EN	These defaults apply when a host enables this provider without overriding an individual control. A host may show its own effective values for a job.
+	DE	Diese Standardwerte gelten, wenn ein Plugin diesen Anbieter aktiviert und den jeweiligen Wert nicht überschreibt. Ein Plugin kann für einen Auftrag eigene wirksame Werte anzeigen.
 
 GUIDANCE_LASTFM_SOURCE
 	EN	Last.fm source
+	DE	Last.fm-Quelle
 
 GUIDANCE_LASTFM_SOURCE_DESC
-	EN	Choose LastMix when its Lyrion plugin is installed, or API Key to let this provider query Last.fm directly. The provider never silently changes this choice.
+	EN	<b>LastMix:</b> Uses the installed LastMix plugin to obtain Last.fm data.<br/><br/><b>API Key:</b> Lets this provider query Last.fm directly using an API key. The provider never silently changes the selected source.
+	DE	<b>LastMix:</b> Verwendet das installierte LastMix-Plugin, um Daten von Last.fm abzurufen.<br/><br/><b>API-Schlüssel:</b> Ermöglicht diesem Anbieter, Last.fm mit einem API-Schlüssel direkt abzufragen. Die gewählte Quelle wird nicht automatisch geändert.
 
 GUIDANCE_LASTFM_SOURCE_LASTMIX
 	EN	LastMix
+	DE	LastMix
 
 GUIDANCE_LASTFM_SOURCE_LASTMIX_UNAVAILABLE
 	EN	LastMix (not installed)
+	DE	LastMix (nicht installiert)
 
 GUIDANCE_LASTFM_SOURCE_API_KEY
 	EN	API Key
+	DE	API-Schlüssel
 
 GUIDANCE_LASTFM_API_KEY
 	EN	Last.fm API key
+	DE	Last.fm-API-Schlüssel
 
 GUIDANCE_LASTFM_API_KEY_SOURCE
 	EN	API key from
+	DE	API-Schlüssel von
 
 GUIDANCE_LASTFM_API_KEY_SOURCE_DESC
-	EN	Use a key configured here or the custom key saved in LastMix. The saved LastMix key must be non-empty; LastMix does not need to be enabled and its custom-key checkbox may be off. The shared secret is not needed. Both plugins share the key's request limits.
+	EN	<b>Bliss Guidance: Last.fm:</b> Uses the API key configured on this settings page.<br/><br/><b>LastMix:</b> Uses the non-empty custom API key saved in LastMix. LastMix need not be enabled, and its custom-key checkbox may be off. No shared secret is required. Both plugins share the key's request limits.
+	DE	<b>Bliss Guidance: Last.fm:</b> Verwendet den auf dieser Einstellungsseite hinterlegten API-Schlüssel.<br/><br/><b>LastMix:</b> Verwendet den in LastMix gespeicherten eigenen API-Schlüssel; dieser darf nicht leer sein. LastMix muss nicht aktiviert und dessen Option für einen eigenen Schlüssel nicht eingeschaltet sein. Ein gemeinsames Geheimnis wird nicht benötigt. Beide Plugins teilen sich die Anfragegrenzen des Schlüssels.
 
 GUIDANCE_LASTFM_API_KEY_SOURCE_PROVIDER
 	EN	Bliss Guidance: Last.fm
+	DE	Bliss Guidance: Last.fm
 
 GUIDANCE_LASTFM_API_KEY_SOURCE_LASTMIX
 	EN	LastMix
+	DE	LastMix
 
 GUIDANCE_LASTFM_API_KEY_SOURCE_LASTMIX_UNAVAILABLE
 	EN	LastMix (no custom API key configured)
+	DE	LastMix (kein eigener API-Schlüssel eingerichtet)
 
 GUIDANCE_LASTFM_API_KEY_DESC
 	EN	Create an API account at last.fm/api/account/create. The key is used only to start the native provider and is not included in optimizer requests, artifacts, logs, or preview results.
+	DE	Erstelle ein API-Konto unter last.fm/api/account/create. Der Schlüssel wird nur zum Starten des nativen Anbieters verwendet und nicht in Optimizer-Anfragen, Dateien, Protokolle oder Vorschauergebnisse aufgenommen.
 
 GUIDANCE_LASTFM_TRACK_INFLUENCE
 	EN	Similar-track guidance (%)
+	DE	Gewichtung ähnlicher Titel (%)
 
 GUIDANCE_LASTFM_TRACK_INFLUENCE_DESC
 	EN	Zero disables similar-track guidance. Higher values give a bounded boost to candidates supported by Last.fm similar-track evidence.
+	DE	Null deaktiviert die Gewichtung ähnlicher Titel. Höhere Werte verstärken Kandidaten mit Last.fm-Hinweisen auf ähnliche Titel innerhalb eines begrenzten Rahmens.
 
 GUIDANCE_LASTFM_ARTIST_MODE
 	EN	How similar-artist matches affect candidates
+	DE	Einfluss ähnlicher Interpreten auf Kandidaten
 
 GUIDANCE_LASTFM_ARTIST_MODE_DESC
-	EN	Target share aims for the selected candidate pool to contain the chosen percentage of supported artists. Bounded influence instead gives each supported candidate a bounded boost alongside other optional guidance.
+	EN	<b>Target share:</b> Aims for the chosen percentage of selected tracks to have Last.fm artist support, when suitable candidates are available. This can outweigh other optional criteria.<br/><br/><b>Per-candidate boost:</b> Gives each supported candidate a bounded boost alongside other optional criteria; it does not aim for a particular share.
+	DE	<b>Zielanteil:</b> Strebt den gewählten Anteil von Titeln mit Last.fm-Interpretenempfehlung unter den ausgewählten Titeln an, sofern geeignete Kandidaten vorhanden sind. Dabei kann der Zielanteil andere optionale Kriterien überlagern.<br/><br/><b>Verstärkung pro Kandidat:</b> Verstärkt jeden empfohlenen Kandidaten begrenzt und berücksichtigt dabei auch andere optionale Kriterien; ein bestimmter Anteil wird nicht angestrebt.
 
 GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE
 	EN	Target share
+	DE	Zielanteil
 
 GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED
 	EN	Per-candidate boost
+	DE	Verstärkung pro Kandidat
 
 GUIDANCE_LASTFM_ARTIST_LEVEL
 	EN	Similar-artist guidance (%)
+	DE	Gewichtung ähnlicher Interpreten (%)
 
 GUIDANCE_LASTFM_ARTIST_LEVEL_DESC
 	EN	The target share in Target share mode, or the maximum bounded boost in Per-candidate boost mode. Zero disables similar-artist guidance.
+	DE	Der Zielanteil im Modus „Zielanteil“ beziehungsweise die maximale begrenzte Verstärkung im Modus „Verstärkung pro Kandidat“. Null deaktiviert die Gewichtung ähnlicher Interpreten.
 
 PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH
 	EN	Offline Last.fm artist graph
+	DE	Offline-Interpretennetz von Last.fm
 
 PLUGIN_LASTFMGUIDANCE_OFFLINE_GRAPH_DESC
 	EN	API Key mode can keep similar-artist results in a provider-owned SQLite graph. Use the update action to scan all artists in the current local Lyrion library. The job runs in the background and can be cancelled.
+	DE	Im Modus „API-Schlüssel“ können Ergebnisse zu ähnlichen Interpreten in einer SQLite-Datenbank des Anbieters gespeichert werden. Die Aktualisierung fragt alle Interpreten der lokalen Lyrion-Mediathek ab. Der Auftrag läuft im Hintergrund und kann abgebrochen werden.
 
 PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY
 	EN	Retrieval policy
+	DE	Abrufstrategie
 
 PLUGIN_LASTFMGUIDANCE_RETRIEVAL_POLICY_DESC
-	EN	Online with cache revalidates stale data before use. Offline preferred also tries online for missing or stale data, but falls back to stale artist data if the lookup fails. Offline only never contacts Last.fm.
+	EN	<b>Online with cache:</b> Revalidates stale data online before use.<br/><br/><b>Offline preferred:</b> Also tries online for missing or stale data, but falls back to stale artist data if the lookup fails.
+	DE	<b>Online mit Cache:</b> Überprüft veraltete Daten vor der Verwendung erneut online.<br/><br/><b>Offline bevorzugen:</b> Fragt bei fehlenden oder veralteten Daten ebenfalls online ab, verwendet bei einem Fehler aber vorhandene ältere Interpretendaten.
 
 PLUGIN_LASTFMGUIDANCE_POLICY_ONLINE
 	EN	Online with cache
+	DE	Online mit Cache
 
 PLUGIN_LASTFMGUIDANCE_POLICY_OFFLINE_PREFERRED
 	EN	Offline preferred
+	DE	Offline bevorzugen
 
 PLUGIN_LASTFMGUIDANCE_STORAGE_SCOPE
 	EN	Stored artist scope
+	DE	Umfang der gespeicherten Interpreten
 
 PLUGIN_LASTFMGUIDANCE_STORAGE_SCOPE_DESC
-	EN	Store every artist returned by Last.fm, or retain only artists found in the current Lyrion library.
+	EN	<b>Store all returned artists:</b> Retains all artists returned by Last.fm.<br/><br/><b>Store only artists in the Lyrion library:</b> Retains only artists present in the current Lyrion library.
+	DE	<b>Alle zurückgegebenen Interpreten speichern:</b> Speichert alle von Last.fm zurückgegebenen Interpreten.<br/><br/><b>Nur Interpreten der Lyrion-Mediathek speichern:</b> Speichert nur Interpreten, die in der aktuellen Lyrion-Mediathek enthalten sind.
 
 PLUGIN_LASTFMGUIDANCE_SCOPE_ALL
 	EN	Store all returned artists
+	DE	Alle zurückgegebenen Interpreten speichern
 
 PLUGIN_LASTFMGUIDANCE_SCOPE_LOCAL
 	EN	Store only artists in the Lyrion library
+	DE	Nur Interpreten der Lyrion-Mediathek speichern
 
 PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT
 	EN	Similar artists stored per source
+	DE	Gespeicherte ähnliche Interpreten pro Ausgangsinterpret
 
 PLUGIN_LASTFMGUIDANCE_ARTIST_RESULT_LIMIT_DESC
 	EN	Request and persist up to this many similar artists for each source artist. Leave empty to omit the request limit and store all results returned by Last.fm.
+	DE	Für jeden Ausgangsinterpreten höchstens diese Anzahl ähnlicher Interpreten abfragen und speichern. Leer lassen, um ohne Anfragebegrenzung alle von Last.fm gelieferten Ergebnisse zu speichern.
 
 PLUGIN_LASTFMGUIDANCE_ARTIST_LIMIT_UNLIMITED
 	EN	Unlimited
+	DE	Unbegrenzt
 
 PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH
 	EN	Refresh artists with results after (days)
+	DE	Interpreten mit Ergebnissen aktualisieren nach (Tagen)
 
 PLUGIN_LASTFMGUIDANCE_ARTIST_REFRESH_DESC
 	EN	Recheck a result after this many days since it was last validated. Leave empty to use Last.fm's cache lifetime, or 30 days if none is available. This does not start updates automatically.
+	DE	Ein Ergebnis nach dieser Anzahl Tage seit der letzten Prüfung erneut abfragen. Leer lassen, um die Last.fm-Cache-Gültigkeit zu verwenden, andernfalls 30 Tage. Dadurch werden keine Aktualisierungen automatisch gestartet.
 
 PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH
 	EN	Retry artists without results after (days)
+	DE	Interpreten ohne Ergebnisse erneut abfragen nach (Tagen)
 
 PLUGIN_LASTFMGUIDANCE_EMPTY_ARTIST_REFRESH_DESC
 	EN	Recheck an empty result after this many days since it was last validated. Leave empty to use Last.fm's cache lifetime, or 7 days if none is available. This does not start updates automatically.
+	DE	Ein leeres Ergebnis nach dieser Anzahl Tage seit der letzten Prüfung erneut abfragen. Leer lassen, um die Last.fm-Cache-Gültigkeit zu verwenden, andernfalls 7 Tage. Dadurch werden keine Aktualisierungen automatisch gestartet.
 
 PLUGIN_LASTFMGUIDANCE_REFRESH_AUTOMATIC
 	EN	Automatic
+	DE	Automatisch
 
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET
 	EN	Retained Last.fm data limit (MB)
+	DE	Limit für gespeicherte Last.fm-Daten (MB)
 
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_DESC
 	EN	Maximum retained Last.fm artist and track similarity data, in decimal MB. The default is 100 MB.
+	DE	Maximal gespeicherte Last.fm-Ähnlichkeitsdaten zu Interpreten und Titeln in dezimalen MB. Der Standardwert beträgt 100 MB.
 
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_WARNING
 	EN	Last.fm's API terms prohibit retaining more than 100 MB of Last.fm data without prior written consent. The displayed data usage is an estimate, not a legal determination. Review the terms before continuing.
+	DE	Die API-Nutzungsbedingungen von Last.fm untersagen das Speichern von mehr als 100 MB Last.fm-Daten ohne vorherige schriftliche Zustimmung. Die angezeigte Datennutzung ist eine Schätzung und keine rechtliche Bewertung. Bitte prüfe die Bedingungen, bevor du fortfährst.
 
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_TERMS
 	EN	Last.fm API terms of service
+	DE	Last.fm-API-Nutzungsbedingungen
 
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_CONFIRM
 	EN	I understand that prior written consent from Last.fm is required for more than 100 MB.
+	DE	Mir ist bewusst, dass für mehr als 100 MB eine vorherige schriftliche Zustimmung von Last.fm erforderlich ist.
 
 PLUGIN_LASTFMGUIDANCE_DATA_BUDGET_CONFIRM_REQUIRED
 	EN	Please confirm the Last.fm data limit warning before saving.
+	DE	Bitte bestätige vor dem Speichern den Hinweis zum Last.fm-Datenlimit.
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATUS
 	EN	Library update status
+	DE	Status der Mediatheksaktualisierung
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATE
 	EN	State: %s; artists: %s; updated roots: %s; SQLite storage: %s; retained Last.fm data: %s
+	DE	Status: %s; Interpreten: %s; aktualisierte Ausgangsinterpreten: %s; SQLite-Speicher: %s; gespeicherte Last.fm-Daten: %s
 
 PLUGIN_LASTFMGUIDANCE_GRAPH_STATE_JS
 	EN	State: %1; artists: %2; updated roots: %3; SQLite storage: %4; retained Last.fm data: %5; library coverage: %6/%7; external artists: %8; artist edges: %9; reciprocal pairs: %10
+	DE	Status: %1; Interpreten: %2; aktualisierte Ausgangsinterpreten: %3; SQLite-Speicher: %4; gespeicherte Last.fm-Daten: %5; Mediatheksabdeckung: %6/%7; externe Interpreten: %8; Interpretenbeziehungen: %9; gegenseitige Paare: %10
 
 PLUGIN_LASTFMGUIDANCE_STORAGE_FULL
 	EN	The retained Last.fm data has reached the configured storage limit. Further additions may be rejected until space is freed or the limit is raised.
@@ -180,45 +236,60 @@ PLUGIN_LASTFMGUIDANCE_UPDATE_BUDGET_STOPPED
 
 PLUGIN_LASTFMGUIDANCE_JOB_START
 	EN	Start:
+	DE	Start:
 
 PLUGIN_LASTFMGUIDANCE_JOB_DURATION
 	EN	Duration:
+	DE	Dauer:
 
 PLUGIN_LASTFMGUIDANCE_JOB_STATUS
 	EN	Status:
+	DE	Status:
 
 PLUGIN_LASTFMGUIDANCE_JOB_DATA_USAGE
 	EN	Retained Last.fm artist-relation data:
+	DE	Gespeicherte Last.fm-Interpretenbeziehungen:
 
 PLUGIN_LASTFMGUIDANCE_JOB_PROGRESS
 	EN	Progress:
+	DE	Fortschritt:
 
 PLUGIN_LASTFMGUIDANCE_JOB_COUNTS
 	EN	Requests / cached / changed:
+	DE	Anfragen / zwischengespeichert / geändert:
 
 PLUGIN_LASTFMGUIDANCE_START_UPDATE
 	EN	Update offline Last.fm library
+	DE	Offline-Last.fm-Mediathek aktualisieren
 
 PLUGIN_LASTFMGUIDANCE_PAUSE_UPDATE
 	EN	Pause update
+	DE	Aktualisierung pausieren
 
 PLUGIN_LASTFMGUIDANCE_RESUME_UPDATE
 	EN	Resume update
+	DE	Aktualisierung fortsetzen
 
 PLUGIN_LASTFMGUIDANCE_CANCEL_UPDATE
 	EN	Cancel update
+	DE	Aktualisierung abbrechen
 
 PLUGIN_LASTFMGUIDANCE_COMPACT
 	EN	Clean up and compact stored data
+	DE	Gespeicherte Daten bereinigen und komprimieren
 
 PLUGIN_LASTFMGUIDANCE_COMPACT_CONFIRM
 	EN	Clean up artist records and compact the offline database? Unreferenced artists are removed, unambiguous malformed names are corrected, and relations outside the saved storage scope or result limit are removed.
+	DE	Interpretendaten bereinigen und die Offline-Datenbank komprimieren? Nicht referenzierte Interpreten und Beziehungen außerhalb des gespeicherten Umfangs oder Ergebnislimits werden entfernt. Eindeutig fehlerhafte Namen werden korrigiert.
 
 PLUGIN_LASTFMGUIDANCE_COMPACT_REPORT
 	EN	Cleanup complete: %1 names repaired; %2 unreferenced artists removed; %3 ambiguous names left unchanged.
+	DE	Bereinigung abgeschlossen: %1 Namen korrigiert; %2 nicht referenzierte Interpreten entfernt; %3 mehrdeutige Namen unverändert belassen.
 
 PLUGIN_LASTFMGUIDANCE_DELETE
 	EN	Delete offline data
+	DE	Offline-Daten löschen
 
 PLUGIN_LASTFMGUIDANCE_DELETE_CONFIRM
 	EN	Delete the offline Last.fm SQLite graph and migrated legacy cache? The API key and guidance defaults will be kept.
+	DE	Die Offline-Last.fm-SQLite-Datenbank und den migrierten alten Cache löschen? Der API-Schlüssel und die Standardeinstellungen bleiben erhalten.
