@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.9
+
+- Keep Last.fm connection settings on the provider settings page.
+
 ## 0.3.8
 
 - Add German translations for the provider settings and status text.
