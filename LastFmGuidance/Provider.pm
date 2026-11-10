@@ -68,7 +68,7 @@ sub guidance_provider_descriptor_v1 {
                     lastmix => 'GUIDANCE_LASTFM_SOURCE_LASTMIX',
                     api_key => 'GUIDANCE_LASTFM_SOURCE_API_KEY',
                 },
-                factory_default => 'lastmix', host_overridable => 1,
+                factory_default => 'lastmix', host_overridable => 0,
                 label_token => 'GUIDANCE_LASTFM_SOURCE',
                 help_token => 'GUIDANCE_LASTFM_SOURCE_DESC',
             },
@@ -660,12 +660,9 @@ sub _resolve_candidate_edges {
 sub _effective_policy {
     my ($policy, $defaults) = @_;
     my %effective;
-    # Hosts may override which provider-owned acquisition backend is used. The
-    # API key itself never leaves this provider and is supplied only through the
-    # child-process environment when the resolved source is API Key.
-    $effective{source} = _source(
-        exists $policy->{source} ? $policy->{source} : $defaults->{source}
-    );
+    # Acquisition source is provider-owned; ignore legacy host overrides.
+    # The API key is supplied only through the child-process environment.
+    $effective{source} = _source($defaults->{source});
     $effective{lastfm_artist_mode} = _artist_mode(
         exists $policy->{lastfm_artist_mode} ? $policy->{lastfm_artist_mode} : $defaults->{lastfm_artist_mode}
     );
