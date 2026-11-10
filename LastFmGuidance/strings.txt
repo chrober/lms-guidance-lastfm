@@ -26,6 +26,10 @@ PLUGIN_LASTFMGUIDANCE_STATUS_UNAVAILABLE
 	EN	The provider is not available (%s).
 	DE	Der Anbieter ist nicht verfügbar (%s).
 
+PLUGIN_LASTFMGUIDANCE_CONNECTION
+	EN	Last.fm connection
+	DE	Last.fm-Verbindung
+
 PLUGIN_LASTFMGUIDANCE_DEFAULTS
 	EN	Default guidance policy
 	DE	Standardeinstellungen für die Gewichtung
