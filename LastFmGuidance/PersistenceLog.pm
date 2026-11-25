@@ -34,6 +34,20 @@ sub drain {
                 }
             }
         } else {
+            if ($info && ($data->{event} || '') eq 'artist_deferred' && defined $data->{artist} && !ref($data->{artist})) {
+                my $artist = substr($data->{artist}, 0, 512);
+                $artist =~ s/[\r\n\x00-\x1f]+/ /g;
+                eval { $info->('Last.fm: deferred storing similar artists for "' . $artist . '" until library membership is available'); 1 } or next;
+                unlink $path;
+                next;
+            }
+            if ($info && ($data->{event} || '') eq 'artist_drained' && defined $data->{artist} && !ref($data->{artist})) {
+                my $artist = substr($data->{artist}, 0, 512);
+                $artist =~ s/[\r\n\x00-\x1f]+/ /g;
+                eval { $info->('Last.fm: stored deferred similar artists for "' . $artist . '"'); 1 } or next;
+                unlink $path;
+                next;
+            }
             next unless $info && defined $data->{artist}
                 && !grep { !defined $data->{$_} || $data->{$_} !~ /^\d+$/ } qw(returned stored excluded_non_library);
             my $artist = substr($data->{artist}, 0, 512);

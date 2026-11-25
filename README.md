@@ -164,7 +164,7 @@ Last.fm Guidance gets related-track and related-artist information either throug
 
 The **Update offline Last.fm library** action snapshots distinct contributors from the local Lyrion library, including available MusicBrainz artist IDs, then starts native synchronization asynchronously. The update reports per-artist progress, request/cache/change counts, pauses, errors, timing, and completion without requiring a settings-page reload.
 
-Local-only artist scope checks current library membership before retaining matches; a background membership refresh keeps the graph aligned with newly added artists. If local membership cannot be read, affected local-only results are not persisted against stale membership.
+Local-only artist scope checks current library membership before retaining matches; a background membership refresh keeps the graph aligned with newly added artists. When membership is unavailable, newly fetched artist observations are queued without delaying guidance. The provider retries them after a library scan or server restart, using the current storage policy and membership; queued Last.fm data counts towards the configured retained-data limit. Track similarities remain in the separate track cache rather than the SQLite artist graph.
 
 Detached persistence workers write diagnostic reports under the provider cache and notify the plugin over a loopback-only socket. The plugin consumes those reports through Lyrion's event loop without an idle polling timer; reports left while Lyrion is unavailable are recovered on the next startup. If a notification is lost, a later notification or restart recovers the remaining reports.
 

@@ -11,7 +11,7 @@ my $source = File::Spec->catdir($FindBin::Bin, '..', 'LastFmGuidance');
 my $stage = tempdir(CLEANUP => 1);
 my $installed = File::Spec->catdir($stage, 'Plugins', 'LastFmGuidance');
 make_path($installed);
-for my $file (qw(Plugin.pm Provider.pm PersistenceLog.pm Settings.pm strings.txt)) {
+for my $file (qw(Plugin.pm Provider.pm PersistenceLog.pm DeferredPersistence.pm Settings.pm strings.txt)) {
     copy(File::Spec->catfile($source, $file), File::Spec->catfile($installed, $file))
         or die "Could not stage $file from $source into $installed: $!";
 }
@@ -48,6 +48,7 @@ unshift @INC, $stage;
 }
 
 require Plugins::LastFmGuidance::Plugin;
+require Plugins::LastFmGuidance::DeferredPersistence;
 is(Plugins::LastFmGuidance::Plugin->getDisplayName, 'PLUGIN_LASTFMGUIDANCE_NAME', 'plugin loads from the Lyrion Plugins/LastFmGuidance install layout');
 is(Plugins::LastFmGuidance::Plugin->guidance_provider_descriptor_v1->{provider_id}, 'lastfm', 'installed plugin loads its companion provider module');
 

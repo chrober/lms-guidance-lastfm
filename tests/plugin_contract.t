@@ -37,8 +37,10 @@ use lib '.';
     $INC{'Slim/Networking/Select.pm'} = __FILE__;
 
     package Slim::Control::Request;
-    our @DISPATCH;
+    our (@DISPATCH, @SUBSCRIPTIONS, @UNSUBSCRIPTIONS);
     sub addDispatch { push @DISPATCH, [@_] }
+    sub subscribe { push @SUBSCRIPTIONS, [@_] }
+    sub unsubscribe { push @UNSUBSCRIPTIONS, [@_] }
     $INC{'Slim/Control/Request.pm'} = __FILE__;
 
     package main;
@@ -49,6 +51,8 @@ require 'LastFmGuidance/Provider.pm';
 $INC{'Plugins/LastFmGuidance/Provider.pm'} = $INC{'LastFmGuidance/Provider.pm'};
 require 'LastFmGuidance/PersistenceLog.pm';
 $INC{'Plugins/LastFmGuidance/PersistenceLog.pm'} = $INC{'LastFmGuidance/PersistenceLog.pm'};
+require 'LastFmGuidance/DeferredPersistence.pm';
+$INC{'Plugins/LastFmGuidance/DeferredPersistence.pm'} = $INC{'LastFmGuidance/DeferredPersistence.pm'};
 require 'LastFmGuidance/Plugin.pm';
 
 my $cache = tempdir(CLEANUP => 1);
@@ -65,6 +69,31 @@ close $pending_out;
     *Plugins::LastFmGuidance::Provider::_log_warning = sub { push @warnings, $_[0] };
 }
 Plugins::LastFmGuidance::Plugin->initPlugin();
+{
+    my $pending_dir = File::Spec->catdir($cache, 'lastfm-guidance.sqlite.pending-artist-writes');
+    mkdir $pending_dir or die $!;
+    my $temporary = File::Spec->catfile($pending_dir, ('a' x 64) . '.tmp-123');
+    open my $temp_out, '>', $temporary or die $!;
+    print {$temp_out} '{}'; close $temp_out;
+    ok(Plugins::LastFmGuidance::Plugin::_has_pending_deferred(), 'startup recognizes an interrupted queue write for recovery');
+    unlink $temporary;
+    rmdir $pending_dir;
+}
+is_deeply($Slim::Control::Request::SUBSCRIPTIONS[0][1], [['rescan'], ['done']], 'deferred writes subscribe to library scan completion');
+is_deeply($Slim::Control::Request::SUBSCRIPTIONS[1][1], [['rescan']], 'deferred writes subscribe to scan starts');
+{
+    package FakeScanRequest;
+    sub isCommand { my ($self, $pattern) = @_; return $self->{done} if @$pattern > 1; return 1 }
+    package main;
+    no warnings 'redefine';
+    no warnings 'once';
+    my $cancelled = 0;
+    local *Plugins::LastFmGuidance::DeferredPersistence::scan_started = sub { ++$cancelled };
+    $Slim::Control::Request::SUBSCRIPTIONS[1][0]->(bless {done => 1}, 'FakeScanRequest');
+    is($cancelled, 0, 'scan completion is not mistaken for a scan start');
+    $Slim::Control::Request::SUBSCRIPTIONS[1][0]->(bless {done => 0}, 'FakeScanRequest');
+    is($cancelled, 1, 'scan start signals the active drain controller');
+}
 is($info[-1], 'Last.fm: stored 1 of 1 similar artists for "Pending" (0 excluded: not in Lyrion library)', 'startup recovers reports left while the server was down');
 ok(!-e $pending, 'startup consumes recovered reports');
 is(scalar @Slim::Utils::Timers::TIMERS, 0, 'plugin does not poll persistence reports while idle');
@@ -95,6 +124,7 @@ if (-f $port_file && $Slim::Networking::Select::CALLBACK) {
 }
 my $shutdown = eval { Plugins::LastFmGuidance::Plugin->shutdownPlugin(); 1 };
 ok($shutdown, 'shutdown succeeds without a base shutdown method');
+is(scalar @Slim::Control::Request::UNSUBSCRIPTIONS, 2, 'shutdown unsubscribes deferred persistence and scan-start handler');
 ok(!-e $port_file, 'shutdown removes its notification endpoint');
 is_deeply(
     $Slim::Control::Request::DISPATCH[0][0],

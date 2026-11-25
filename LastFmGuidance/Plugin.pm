@@ -4,12 +4,15 @@ use strict;
 use base qw(Slim::Plugin::Base);
 use File::Basename qw(dirname);
 use File::Spec::Functions qw(catfile);
+use File::Spec ();
+use JSON::PP qw(encode_json);
 use Plugins::LastFmGuidance::Provider;
 use Plugins::LastFmGuidance::PersistenceLog;
 use IO::Socket::INET;
 use Slim::Networking::Select;
 
-my ($persistence_socket, $persistence_port_file, $persistence_port);
+my ($persistence_socket, $persistence_port_file, $persistence_port, $deferred_runtime, $drain_request_path, $scan_start_listener);
+my $drain_serial = 0;
 
 sub getDisplayName { return 'PLUGIN_LASTFMGUIDANCE_NAME'; }
 
@@ -25,6 +28,7 @@ sub initPlugin {
         Plugins::LastFmGuidance::Settings->new;
     }
     require Slim::Control::Request;
+    _start_deferred_persistence();
     Slim::Control::Request::addDispatch(
         ['lastfmguidance', 'graph', '_action'],
         [0, 0, 1, \&_graphCommand],
@@ -73,9 +77,79 @@ sub _persistence_notification {
     my $socket = shift;
     return unless defined $socket->recv(my $message, 32);
     _drain_persistence_reports();
+    $deferred_runtime->trigger if $deferred_runtime;
+}
+
+sub _start_deferred_persistence {
+    require Plugins::LastFmGuidance::DeferredPersistence;
+    require Slim::Utils::Timers;
+    $deferred_runtime = Plugins::LastFmGuidance::DeferredPersistence->new(
+        is_scanning => sub {
+            my $scanning = eval { require Slim::Music::Import; Slim::Music::Import->stillScanning };
+            return $@ ? 1 : ($scanning ? 1 : 0);
+        },
+        has_pending => sub { _has_pending_deferred() },
+        launch => sub { _launch_deferred_persistence() },
+        subscribe => sub { Slim::Control::Request::subscribe($_[0], [['rescan'], ['done']]) },
+        unsubscribe => sub { Slim::Control::Request::unsubscribe($_[0]) },
+        schedule => sub { Slim::Utils::Timers::setTimer(undef, Time::HiRes::time() + 1, $_[0]) },
+        cleanup => sub { unlink $drain_request_path if $drain_request_path && !-l $drain_request_path && -f $drain_request_path; undef $drain_request_path },
+        on_error => sub { Plugins::LastFmGuidance::Provider::_log_warning('Last.fm deferred persistence: ' . $_[0]) },
+    );
+    $deferred_runtime->start;
+    $scan_start_listener = sub {
+        my $request = shift;
+        return unless $request && $request->isCommand([['rescan']]);
+        return if $request->isCommand([['rescan'], ['done']]);
+        $deferred_runtime->scan_started if $deferred_runtime;
+    };
+    Slim::Control::Request::subscribe($scan_start_listener, [['rescan']]);
+}
+
+sub _has_pending_deferred {
+    my $dir = Plugins::LastFmGuidance::Provider::_graph_store_path();
+    $dir .= '.pending-artist-writes';
+    return 0 unless -d $dir && !-l $dir && opendir(my $dh, $dir);
+    my $found = scalar grep { /\A[0-9a-f]{64}\.(?:json|tmp-\d+)\z/ } readdir($dh);
+    closedir($dh);
+    return $found;
+}
+
+sub _launch_deferred_persistence {
+    require Proc::Background;
+    require Time::HiRes;
+    my $defaults = Plugins::LastFmGuidance::Provider::guidance_provider_defaults_v1();
+    my $library = Plugins::LastFmGuidance::Provider::_library_db_path();
+    die 'Lyrion library database is unavailable' if ($defaults->{storage_scope} || '') eq 'local_artists_only' && !length($library);
+    my $program = Plugins::LastFmGuidance::Provider::_program_path();
+    die 'native Last.fm provider is unavailable' unless -f $program;
+    my $request = {
+        acquisition_mode => 'direct',
+        store_path => Plugins::LastFmGuidance::Provider::_graph_store_path(),
+        legacy_cache_path => Plugins::LastFmGuidance::Provider::_legacy_cache_path(),
+        storage_scope => $defaults->{storage_scope},
+        artist_result_limit => 0 + $defaults->{artist_result_limit},
+        budget_bytes => 0 + $defaults->{data_budget_mb} * 1_000_000,
+        request_deadline_ms => 5000, max_concurrent_requests => 2,
+    };
+    $request->{library_db_path} = $library if length $library;
+    my $path = catfile(Plugins::LastFmGuidance::Provider::_cache_root(), 'deferred-drain-' . $$ . '-' . ++$drain_serial . '.json');
+    open my $fh, '>:raw', $path or die "cannot write deferred drain request: $!";
+    print {$fh} encode_json($request) or die "cannot write deferred drain request: $!";
+    close $fh or die "cannot close deferred drain request: $!";
+    $drain_request_path = $path;
+    local $ENV{BLISS_GUIDANCE_LASTFM_API_KEY};
+    delete $ENV{BLISS_GUIDANCE_LASTFM_API_KEY};
+    return Proc::Background->new({die_upon_destroy => 1}, $^X,
+        catfile(dirname(__FILE__), 'GraphRunner.pl'), File::Spec->devnull(), File::Spec->devnull(),
+        $program, 'drain-guidance-background', $path);
 }
 
 sub shutdownPlugin {
+    $deferred_runtime->stop if $deferred_runtime;
+    undef $deferred_runtime;
+    Slim::Control::Request::unsubscribe($scan_start_listener) if $scan_start_listener;
+    undef $scan_start_listener;
     if ($persistence_socket) {
         Slim::Networking::Select::removeRead($persistence_socket);
         close $persistence_socket;

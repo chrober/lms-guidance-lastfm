@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.10
+
+- Defer local-only artist persistence when library membership is unavailable,
+  and resume safely after a library scan or server restart.
+- Count queued observations against the retained-data limit and report their
+  persistence through the existing logging mechanism.
+- Bundle native provider 0.2.7.
+
 ## 0.3.9
 
 - Keep Last.fm connection settings on the provider settings page.
